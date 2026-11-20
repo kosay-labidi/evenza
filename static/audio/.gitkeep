@@ -1,0 +1,6 @@
+Déposer ici les fichiers audio optionnels du site :
+- ambiance.mp3 → son d'ambiance de l'intro 3D (facultatif)
+- film.mp3     → musique du film « Un soir en Méditerranée » (facultatif)
+
+Sans ces fichiers, tout reste silencieux (aucune erreur) : l'intro et le film
+fonctionnent à l'identique, simplement muets.

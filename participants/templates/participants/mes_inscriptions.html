@@ -1,0 +1,15 @@
+{% extends "app_base.html" %}{% block title %}Mes billets{% endblock %}
+{% block banner %}{% include "partials/banner.html" with sur_titre="Mon espace" titre="Mes billets" texte="Retrouvez vos réservations, téléchargez vos billets ou annulez une place." %}{% endblock %}
+{% block content %}
+<div class="table-wrap"><table class="table"><thead><tr><th>Événement</th><th>Date</th><th>Billet</th><th>Statut</th><th></th></tr></thead><tbody>
+{% for i in object_list %}<tr>
+  <td><a href="{{ i.evenement.get_absolute_url }}">{{ i.evenement }}</a></td><td>{{ i.evenement.date_debut|date:"d/m/Y H:i" }}</td><td>{% if i.type_billet %}{{ i.type_billet.nom }}{% else %}Entrée{% endif %} × {{ i.quantite }}</td>
+  <td><span class="badge {{ i.statut|lower }}">{{ i.get_statut_display }}</span>{% if i.present %} <span class="badge confirmee">Présent</span>{% endif %}</td>
+  <td class="row-actions">
+    {% if i.statut != "ANNULEE" %}<a class="btn ghost sm" href="{{ i.get_absolute_url }}">Billet</a>
+    <form method="post" action="{% url 'participants:annuler' i.pk %}" class="inline">{% csrf_token %}<button class="btn ghost sm">Annuler</button></form>{% endif %}
+    {% if i.present and not i.avis %}<a class="btn ghost sm" href="{% url 'participants:avis' i.pk %}">Donner un avis</a>{% endif %}
+  </td></tr>
+{% empty %}<tr><td colspan="5" class="muted">Aucune inscription. <a href="{% url 'evenements:liste' %}">Voir les événements</a></td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

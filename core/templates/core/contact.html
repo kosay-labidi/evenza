@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% load static %}{% block title %}Contact{% endblock %}
+{% block body_class %}has-hero{% endblock %}
+{% block banner %}{% static 'img/home/mariage.jpg' as photo %}{% include "partials/banner.html" with image=photo sur_titre="Contact" titre="Parlons de votre événement" texte="Une question sur un billet, un projet de mariage ou de conférence ? Écrivez-nous, nous répondons sous 48 h." %}{% endblock %}
+{% block content %}
+<section class="contact">
+  <div class="contact-info reveal">
+    <span class="eyebrow line">Nous joindre</span>
+    <h2>Une équipe <em>à votre écoute</em></h2>
+    <ul class="coords">
+      {% if CONTACT.email %}<li><i aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg></i><div><b>E-mail</b><span><a href="mailto:{{ CONTACT.email }}">{{ CONTACT.email }}</a></span></div></li>{% endif %}
+      {% if CONTACT.telephone %}<li><i aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg></i><div><b>Téléphone</b><span>{{ CONTACT.telephone }}</span></div></li>{% endif %}
+      {% if CONTACT.adresse %}<li><i aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></i><div><b>Adresse</b><span>{{ CONTACT.adresse }}</span></div></li>{% endif %}
+      {% if CONTACT.horaires %}<li><i aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></i><div><b>Horaires</b><span>{{ CONTACT.horaires }}</span></div></li>{% endif %}
+    </ul>
+    <a class="link-line" href="{% url 'core:faq' %}">Consulter la FAQ</a>
+  </div>
+  <form method="post" class="card form form-card reveal" style="--d:.12s">{% csrf_token %}
+    <h2>Envoyer un message</h2>
+    {% include "partials/form_fields.html" %}
+    <button class="btn primary" type="submit">Envoyer le message <svg class="arrow" width="18" height="10" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M0 7h28M22 1l6 6-6 6"/></svg></button>
+  </form>
+</section>
+{% endblock %}

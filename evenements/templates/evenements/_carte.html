@@ -1,0 +1,19 @@
+{# Carte d'événement : cadre encre, passe-partout sombre, liseré or au survol #}
+<a class="ecard reveal" href="{{ e.get_absolute_url }}" style="--d: {{ delai|default:'0s' }}">
+  <div class="ecard-img reveal-img" data-cursor="Voir">
+    <img src="{{ e.image_url }}" alt="" loading="lazy">
+    <span class="ecard-frame" aria-hidden="true"></span>
+    <span class="chip">{{ e.categorie }}</span>
+    <span class="ecard-date"><b>{{ e.date_debut|date:"d" }}</b>{{ e.date_debut|date:"M" }}</span>
+    <span class="ecard-cta" aria-hidden="true">{% if e.est_complet %}Liste d'attente{% else %}Réserver{% endif %} <svg width="22" height="10" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M0 7h28M22 1l6 6-6 6"/></svg></span>
+  </div>
+  <div class="ecard-body">
+    <span class="ecard-n" aria-hidden="true">{% if forloop %}{{ forloop.counter|stringformat:"02d" }}{% endif %}</span>
+    <h3>{{ e.titre }}</h3>
+    <p class="muted">{{ e.lieu.nom }} · {{ e.lieu.ville }} · {{ e.date_debut|date:"H:i" }}</p>
+    <div class="ecard-foot">
+      <span class="price">{% if e.prix_min %}dès {{ e.prix_min|floatformat:0 }} DT{% else %}Gratuit{% endif %}</span>
+      <span class="ecard-places">{% if e.est_complet %}Complet{% else %}{{ e.places_restantes }} places{% endif %}</span>
+    </div>
+  </div>
+</a>

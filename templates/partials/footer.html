@@ -1,0 +1,30 @@
+{% load static %}<footer class="footer on-dark">
+  {% if not sans_cta %}<div class="container footer-cta">
+    <h2>Votre prochain <em>moment d'exception</em> commence ici.</h2>
+    <div class="actions" style="margin:0">
+      <a class="btn primary" href="{% url 'core:contact' %}">Parlons de votre projet</a>
+      <a class="btn light" href="{% url 'evenements:liste' %}">Voir l'agenda</a>
+    </div>
+  </div>{% endif %}
+  <div class="container footer-grid">
+    <div class="f-brand">
+      <a class="logo" href="{% url 'core:home' %}"><img src="{% static 'img/logo.svg' %}?v=ev2" alt="" width="36" height="36"><span>Évenza</span></a>
+      <p>Mariages, galas, conférences et festivals : nous imaginons, organisons et accueillons vos événements.</p>
+      {% if CONTACT.reseaux %}
+      <div class="f-social">{% for nom, lien in CONTACT.reseaux %}<a href="{{ lien }}" target="_blank" rel="noopener" aria-label="{{ nom }}"><span aria-hidden="true">{{ nom|first }}</span></a>{% endfor %}</div>
+      {% endif %}
+    </div>
+    <div><h4>Découvrir</h4><a href="{% url 'evenements:liste' %}">Tous les événements</a><a href="{% url 'core:a_propos' %}">L'agence</a><a href="{% url 'core:faq' %}">Questions fréquentes</a><a href="{% url 'core:contact' %}">Contact</a></div>
+    <div><h4>Mon compte</h4>{% if user.is_authenticated %}<a href="{% url 'core:dashboard' %}">Tableau de bord</a><a href="{% url 'participants:mes_inscriptions' %}">Mes billets</a><a href="{% url 'utilisateurs:profil' %}">Mon profil</a>
+      {% else %}<a href="{% url 'utilisateurs:login' %}">Connexion</a><a href="{% url 'utilisateurs:register' %}">Créer un compte</a><a href="{% url 'utilisateurs:password_reset' %}">Mot de passe oublié</a>{% endif %}</div>
+    <div class="f-coords"><h4>Nous joindre</h4>
+      {% if CONTACT.email %}<a href="mailto:{{ CONTACT.email }}">{{ CONTACT.email }}</a>{% endif %}
+      {% if CONTACT.telephone %}<a href="tel:{{ CONTACT.telephone|cut:' ' }}">{{ CONTACT.telephone }}</a>{% endif %}
+      {% if CONTACT.adresse %}<span>{{ CONTACT.adresse }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="container footer-in">
+    <span>© {% now "Y" %} Évenza · Projet ESPRIT 3IA</span>
+    <span>{% if request.resolver_match.url_name == "home" %}<a href="?intro=1">Revoir l'intro</a> · <a href="?film=1" data-film>Revoir le film</a> · {% endif %}Django · architecture MVT</span>
+  </div>
+</footer>

@@ -1,0 +1,4 @@
+{% extends "form_base.html" %}{% block title %}{% if compte %}Modifier un utilisateur{% else %}Nouvel utilisateur{% endif %}{% endblock %}
+{% block eyebrow %}Gestion des utilisateurs{% endblock %}
+{% block heading %}{% if compte %}Modifier « {{ compte.username }} »{% else %}Nouvel utilisateur{% endif %}{% endblock %}
+{% block cancel %}{% if compte %}{% url 'utilisateurs:utilisateur_detail' compte.pk %}{% else %}{% url 'utilisateurs:utilisateur_liste' %}{% endif %}{% endblock %}

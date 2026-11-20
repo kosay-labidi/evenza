@@ -1,0 +1,128 @@
+/* Évenza · accueil « film » : une vraie vidéo plein écran pilotée par le défilement. */
+body.film{background:#000}
+.film .nav{position:fixed;left:0;right:0;background:linear-gradient(rgba(0,0,0,.6),transparent);border-bottom:0;backdrop-filter:none;transition:opacity .5s}
+.film .messages{position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:12;width:min(600px,92vw)}
+
+/* la vidéo, toujours en fond */
+.stage{position:fixed;inset:0;z-index:0;overflow:hidden;background:#000}
+#film{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scale(var(--zoom,1.06));transform-origin:50% 45%;filter:brightness(var(--bright,.78)) saturate(1.02) blur(var(--blur,0px));will-change:transform,filter}
+.stage::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 45%,transparent 50%,rgba(0,0,0,.55) 100%),linear-gradient(180deg,rgba(0,0,0,.35),transparent 22%,transparent 60%,rgba(0,0,0,.65))}
+.grain{position:fixed;inset:-50%;z-index:1;pointer-events:none;opacity:.07;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");animation:grain .9s steps(6) infinite}
+@keyframes grain{0%{transform:translate(0,0)}20%{transform:translate(-3%,2%)}40%{transform:translate(2%,-3%)}60%{transform:translate(-2%,-1%)}80%{transform:translate(3%,3%)}100%{transform:translate(0,0)}}
+/* bandes cinéma qui s'ouvrent au début */
+.bars::before,.bars::after{content:"";position:fixed;left:0;right:0;height:var(--bar,12vh);background:#000;z-index:2;transition:height .2s linear}
+.bars::before{top:0}.bars::after{bottom:0}
+
+/* chargement */
+#loader{position:fixed;inset:0;z-index:30;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .9s}
+#loader b{font-family:var(--display);font-size:clamp(30px,5vw,56px);letter-spacing:.02em}
+#loader .bar{width:min(260px,60vw);height:2px;background:rgba(255,255,255,.15);overflow:hidden}
+#loader .bar i{display:block;height:100%;width:0;background:#fff;transition:width .25s}
+#loader small{font-size:12px;letter-spacing:.2em;color:var(--muted)}
+
+/* intro : titre qui « traverse » l'écran quand on commence à défiler */
+.intro{position:fixed;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:18px;padding-inline:max(16px,5vw);pointer-events:none}
+.intro h1{font-size:clamp(52px,12vw,190px);font-weight:900;line-height:.86;margin:0;letter-spacing:-.04em;text-shadow:0 20px 80px rgba(0,0,0,.5)}
+.intro p{margin:0;max-width:44ch;color:#f1ecff;font-size:clamp(15px,1.5vw,19px);text-shadow:0 2px 20px #000}
+.intro .hint{margin-top:14px;font-size:11px;letter-spacing:.3em;color:#ddd;display:flex;flex-direction:column;align-items:center;gap:10px}
+.intro .hint i{width:22px;height:36px;border:1.5px solid rgba(255,255,255,.7);border-radius:12px;position:relative}
+.intro .hint i::after{content:"";position:absolute;left:50%;top:7px;width:3px;height:7px;margin-left:-1.5px;border-radius:2px;background:#fff;animation:wheel 1.6s ease-in-out infinite}
+@keyframes wheel{0%{transform:translateY(0);opacity:1}70%{transform:translateY(10px);opacity:0}100%{opacity:0}}
+
+/* légendes des chapitres (fixes, en bas à gauche, façon générique de film) */
+.chapters{position:fixed;left:max(16px,6vw);bottom:calc(14vh + 40px);z-index:3;width:min(560px,calc(100% - 32px));pointer-events:none}
+.chap{position:absolute;left:0;bottom:0;display:flex;flex-direction:column;gap:10px;opacity:0;transform:translateY(24px);transition:opacity .7s cubic-bezier(.2,.8,.2,1),transform .7s cubic-bezier(.2,.8,.2,1)}
+.chap.on{opacity:1;transform:none;pointer-events:auto}
+.chap .k{font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--amber);font-weight:700;text-shadow:0 1px 10px #000}
+.chap h2{font-size:clamp(34px,5.2vw,72px);font-weight:900;line-height:.98;margin:0;text-shadow:0 6px 40px rgba(0,0,0,.6)}
+.chap h2 span{display:inline-block;overflow:hidden;vertical-align:bottom}
+.chap p{margin:0;color:#ece7f7;font-size:clamp(15px,1.4vw,18px);line-height:1.6;max-width:46ch;text-shadow:0 2px 16px #000}
+.chap .tag{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;padding:7px 12px;border-radius:999px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(10px)}
+.chap .tag::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px var(--lime)}
+.chap .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+
+/* barre de lecture : chapitres cliquables + minutage */
+.player{position:fixed;left:max(16px,6vw);right:max(16px,6vw);bottom:calc(14vh - 36px);z-index:4;display:flex;align-items:center;gap:14px;font-family:ui-monospace,Consolas,monospace;font-size:12px;color:#ddd;transition:opacity .5s}
+.ticks{flex:1;display:flex;gap:4px}
+.ticks button{flex:var(--w,1);height:22px;border:0;padding:0;background:none;cursor:pointer;position:relative}
+.ticks button::before{content:"";position:absolute;left:0;right:0;top:10px;height:2px;background:rgba(255,255,255,.25);border-radius:2px}
+.ticks button i{position:absolute;left:0;top:10px;height:2px;width:0;background:#fff;border-radius:2px}
+.ticks button:hover::before{background:rgba(255,255,255,.5)}
+.ticks button span{position:absolute;left:0;bottom:18px;white-space:nowrap;font-family:var(--body);font-size:11px;opacity:0;transition:opacity .25s;color:#fff}
+.ticks button:hover span{opacity:1}
+#tc{min-width:92px;text-align:right}
+
+#flow{position:relative;z-index:5}
+.scroll-track{height:var(--track,900vh)}
+
+/* bouton passer l'intro */
+.skip{position:fixed;right:max(16px,6vw);top:calc(env(safe-area-inset-top,0px) + 84px);z-index:6;font:inherit;font-size:13px;font-weight:600;color:#fff;cursor:pointer;
+  padding:10px 16px;border-radius:999px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(10px);transition:opacity .4s,background .25s}
+.skip:hover{background:rgba(255,255,255,.16)}
+.skip span{display:inline-block;animation:bob 1.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(3px)}}
+
+/* après le film */
+.after{position:relative;background:linear-gradient(rgba(8,7,13,0),rgba(8,7,13,.84) 160px,rgba(8,7,13,.95));padding-top:140px}
+.after-bar{display:flex;justify-content:flex-end;margin-bottom:10px}
+.credit{font-size:12px;color:var(--muted);text-align:center;margin:30px 0 0}
+
+/* deck */
+.deck-sec{padding-block:10px 40px;overflow-x:clip}
+.deck-head{text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:26px}
+.deck-head h2{font-size:clamp(32px,5vw,60px);margin:0}.deck-head p{margin:0}
+.deck{position:relative;height:min(540px,72vh);perspective:1400px;outline:none;touch-action:pan-y;cursor:grab;user-select:none}
+.deck.dragging{cursor:grabbing}
+.deck:focus-visible{outline:2px solid var(--amber);outline-offset:8px;border-radius:24px}
+.dcard{position:absolute;left:50%;top:0;width:min(380px,82vw);height:100%;margin-left:calc(min(380px,82vw) / -2);border-radius:26px;overflow:hidden;
+  background:#120c22;border:1px solid rgba(255,255,255,.14);box-shadow:0 40px 80px rgba(0,0,0,.55);transform-style:preserve-3d;will-change:transform,opacity;
+  transition:transform .6s cubic-bezier(.2,.8,.2,1),opacity .6s,filter .6s}
+.deck.dragging .dcard{transition:none}
+.dcard img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.dcard::after{content:"";position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,.2),transparent 30%,transparent 45%,rgba(8,7,13,.95) 80%)}
+.dcard-top{position:absolute;left:14px;right:14px;top:14px;z-index:1;display:flex;justify-content:space-between;align-items:flex-start}
+.dcard-top .ecard-date{position:static}
+.dcard-body{position:absolute;left:0;right:0;bottom:0;z-index:1;padding:22px;display:flex;flex-direction:column;gap:8px}
+.dcard-body h3{font-size:24px;margin:0}.dcard-body p{margin:0;color:#ddd6f0;font-size:14px}
+.dcard-foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+.dcard .bar{margin:4px 0}
+.deck-ctrl{display:flex;justify-content:center;align-items:center;gap:18px;margin-top:22px}
+.round{width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--ink);font-size:18px;cursor:pointer;transition:background .25s,transform .25s}
+.round:hover{background:rgba(255,255,255,.14);transform:scale(1.06)}
+.deck-dots{display:flex;gap:8px}
+.deck-dots button{width:8px;height:8px;border-radius:999px;border:0;padding:0;background:rgba(255,255,255,.3);cursor:pointer;transition:width .35s,background .35s}
+.deck-dots button.on{width:26px;background:var(--amber)}
+
+/* recherche + catégories */
+.find{margin-top:40px;padding:28px;border-radius:28px;border:1px solid var(--line);background:linear-gradient(135deg,rgba(255,61,139,.09),rgba(255,181,71,.05))}
+.find-in{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+.find h2{margin:4px 0 0;font-size:clamp(24px,3vw,36px)}
+.search{display:flex;gap:8px;flex:1;max-width:520px;min-width:260px}
+.search input{border-radius:999px;padding:13px 18px}
+.cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:22px}
+.cat{position:relative;height:120px;border-radius:18px;overflow:hidden;color:var(--ink);border:1px solid var(--line)}
+.cat:hover{text-decoration:none}
+.cat img{width:100%;height:100%;object-fit:cover;transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.cat:hover img{transform:scale(1.08)}
+.cat::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 20%,rgba(8,7,13,.85))}
+.cat span{position:absolute;left:14px;bottom:12px;z-index:1;display:flex;flex-direction:column}
+.cat small{color:#ddd6f0}
+
+/* bandeau organisateurs */
+.org-band{margin-top:40px;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,.6fr);gap:30px;align-items:center;padding:34px;border-radius:28px;border:1px solid var(--line);background:var(--card)}
+.org-band h2{font-size:clamp(26px,3.4vw,42px);margin:6px 0 18px}
+.steps-3{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.steps-3 li{display:flex;gap:12px;align-items:flex-start}
+.steps-3 b{width:32px;height:32px;flex:none;border-radius:50%;display:grid;place-items:center;background:rgba(255,181,71,.15);color:var(--amber)}
+.steps-3 div{display:flex;flex-direction:column;gap:2px}.steps-3 span{color:var(--muted);font-size:14px}
+.org-cta{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+@media (max-width:860px){.org-band{grid-template-columns:1fr}.steps-3{grid-template-columns:1fr}}
+
+@media (max-width:760px){
+  .chapters{bottom:calc(10vh + 46px)}.player{bottom:calc(10vh - 26px)}.ticks button span{display:none}
+  .skip{top:auto;bottom:calc(10vh + 6px);right:16px;font-size:12px;padding:8px 12px}
+}
+body.static .scroll-track,body.static .intro,body.static .player,body.static .bars,body.static .skip{display:none}
+body.static .chapters{position:relative;left:auto;bottom:auto;width:auto;padding:110px max(16px,6vw) 40px;display:grid;gap:40px;z-index:5}
+body.static .chap{position:relative;opacity:1;transform:none}

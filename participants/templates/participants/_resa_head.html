@@ -1,0 +1,6 @@
+<div class="resa-event">
+  <img src="{{ evenement.image_url }}" alt="">
+  <div><span class="chip">{{ evenement.categorie }}</span><h2>{{ evenement.titre }}</h2>
+  <p class="muted">{{ evenement.date_debut|date:"l d F Y · H:i" }} · {{ evenement.lieu }}</p>
+  <p class="small muted">{{ evenement.places_restantes }} place(s) restante(s) sur {{ evenement.capacite }}</p></div>
+</div>

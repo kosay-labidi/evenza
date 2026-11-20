@@ -1,0 +1,17 @@
+{% extends "app_base.html" %}{% block title %}Affectations{% endblock %}
+{% block banner %}{% include "partials/banner.html" with sur_titre="Gestion des ressources" titre="Affectations" texte="Les ressources réservées pour vos événements, créneau par créneau." %}{% endblock %}
+{% block content %}
+<form class="filters" method="get" style="grid-template-columns:1fr 1fr auto">
+  <select name="evenement" aria-label="Événement"><option value="">Tous mes événements</option>{% for e in evenements %}<option value="{{ e.pk }}" {% if request.GET.evenement == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.titre }}</option>{% endfor %}</select>
+  <select name="ressource" aria-label="Ressource"><option value="">Toutes les ressources</option>{% for r in ressources %}<option value="{{ r.pk }}" {% if request.GET.ressource == r.pk|stringformat:"s" %}selected{% endif %}>{{ r.nom }}</option>{% endfor %}</select>
+  <button class="btn primary sm">Filtrer</button>
+</form>
+<div class="table-wrap"><table class="table"><thead><tr><th>Ressource</th><th>Quantité</th><th>Événement</th><th>Créneau</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
+{% for a in object_list %}<tr>
+  <td><a href="{% url 'ressources:detail' a.ressource.pk %}">{{ a.ressource.nom }}</a></td><td>× {{ a.quantite }}</td>
+  <td><a href="{{ a.evenement.get_absolute_url }}">{{ a.evenement.titre }}</a></td><td>{{ a.debut|date:"d/m/Y H:i" }} → {{ a.fin|date:"d/m H:i" }}</td>
+  <td class="row-actions"><a class="btn ghost sm" href="{% url 'ressources:affectation_modifier' a.pk %}">Modifier</a><a class="btn ghost sm danger-text" href="{% url 'ressources:affectation_supprimer' a.pk %}">Supprimer</a></td>
+</tr>{% empty %}<tr><td colspan="5" class="muted">Aucune affectation. Affectez une ressource depuis la page d'un événement (« + Affecter »).</td></tr>{% endfor %}
+</tbody></table></div>
+{% include "partials/pagination.html" %}
+{% endblock %}

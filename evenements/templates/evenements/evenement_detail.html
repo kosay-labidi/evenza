@@ -1,0 +1,57 @@
+{% extends "base.html" %}{% block title %}{{ object.titre }}{% endblock %}
+{% block content %}
+<article class="detail">
+  <div class="detail-head reveal-img">
+    <img src="{{ object.image_url }}" alt="">
+    <div class="detail-head-in">
+      <span class="chip">{{ object.categorie }}</span> <span class="badge {{ object.statut|lower }}">{{ object.get_statut_display }}</span>
+      <h1>{{ object.titre }}</h1>
+      <p>{{ object.date_debut|date:"l d F Y · H:i" }} → {{ object.date_fin|date:"H:i" }} · {{ object.lieu }}</p>
+    </div>
+  </div>
+  <div class="detail-grid">
+    <div>
+      <h2>À propos</h2><p>{{ object.description|linebreaksbr|default:"—" }}</p>
+      <div class="sec-head"><h2>Programme</h2>{% if peut_modifier %}<a class="btn ghost sm" href="{% url 'programmes:seance_creer' object.pk %}">+ Séance</a>{% endif %}</div>
+      <ul class="timeline">
+        {% for s in seances %}<li><time>{{ s.debut|date:"H:i" }}–{{ s.fin|date:"H:i" }}</time><div><b>{{ s.titre }}</b>{% if s.salle %} · {{ s.salle }}{% endif %}<br><small class="muted">{{ s.intervenants.all|join:", " }}</small>
+          {% if peut_modifier %}<small><a href="{% url 'programmes:seance_modifier' s.pk %}">modifier</a> · <a href="{% url 'programmes:seance_supprimer' s.pk %}">supprimer</a></small>{% endif %}</div></li>
+        {% empty %}<li class="muted">Programme à venir.</li>{% endfor %}
+      </ul>
+      {% if peut_modifier %}
+        <div class="sec-head"><h2>Prestataires</h2><a class="btn ghost sm" href="{% url 'prestataires:reserver' object.pk %}">+ Réserver</a></div>
+        <table class="table"><tbody>{% for r in reservations %}<tr><td>{{ r.prestataire }}</td><td>{{ r.service }}</td><td>{{ r.montant }} DT</td><td><span class="badge {{ r.statut|lower }}">{{ r.get_statut_display }}</span></td>
+          <td>{% if r.statut == "DEMANDEE" %}<form method="post" action="{% url 'prestataires:reservation_statut' r.pk 'CONFIRMEE' %}" class="inline">{% csrf_token %}<button class="btn ghost sm">Confirmer</button></form>{% endif %}</td></tr>
+        {% empty %}<tr><td class="muted">Aucune réservation.</td></tr>{% endfor %}</tbody></table>
+        <div class="sec-head"><h2>Ressources</h2><a class="btn ghost sm" href="{% url 'ressources:affecter' object.pk %}">+ Affecter</a></div>
+        <table class="table"><tbody>{% for a in affectations %}<tr><td>{{ a.ressource.nom }}</td><td>×{{ a.quantite }}</td><td>{{ a.debut|date:"d/m H:i" }} → {{ a.fin|date:"H:i" }}</td><td class="row-actions"><a class="btn ghost sm" href="{% url 'ressources:affectation_modifier' a.pk %}">Modifier</a><a class="btn ghost sm danger-text" href="{% url 'ressources:affectation_supprimer' a.pk %}">Supprimer</a></td></tr>
+        {% empty %}<tr><td class="muted">Aucune ressource affectée.</td></tr>{% endfor %}</tbody></table>
+      {% endif %}
+    </div>
+    <aside class="card side">
+      <p class="price big">{% if object.prix_min %}<small class="muted">dès</small> {{ object.prix_min|floatformat:0 }} DT{% else %}Gratuit{% endif %}</p>
+      {% if billets %}<ul class="tlist">{% for t in billets %}<li><span>{{ t.nom }}{% if t.restants is not None %} <small class="muted">· {{ t.restants }} restant(s)</small>{% endif %}</span><b>{% if t.prix %}{{ t.prix|floatformat:0 }} DT{% else %}Gratuit{% endif %}</b></li>{% endfor %}</ul>{% endif %}
+      <p><b>{{ object.places_restantes }}</b> place(s) restante(s) sur {{ object.capacite }}</p>
+      <div class="bar"><i style="width: {% widthratio object.nb_inscrits object.capacite 100 %}%"></i></div>
+      {% if object.statut == "PUBLIE" %}
+        {% if mon_inscription and mon_inscription.statut != "ANNULEE" %}
+          <a class="btn primary full" href="{{ mon_inscription.get_absolute_url }}">Voir mon billet</a>
+        {% elif user.is_authenticated %}
+          <a class="btn primary full" href="{% url 'participants:reserver' object.pk %}">{% if object.est_complet %}Rejoindre la liste d'attente{% else %}Réserver mes billets{% endif %}</a>
+        {% else %}<a class="btn primary full" href="{% url 'utilisateurs:login' %}?next={% url 'participants:reserver' object.pk %}">Se connecter pour réserver</a>{% endif %}
+      {% endif %}
+      {% if peut_modifier %}
+        <hr>
+        <a class="btn ghost full" href="{% url 'evenements:modifier' object.pk %}">Modifier</a>
+        <a class="btn ghost full" href="{% url 'participants:type_creer' object.pk %}">+ Type de billet</a>
+        <a class="btn ghost full" href="{% url 'participants:liste' object.pk %}">Participants ({{ object.nb_inscrits }})</a>
+        <a class="btn ghost full" href="{% url 'participants:checkin' object.pk %}">Check-in à l'entrée</a>
+        {% if object.statut == "BROUILLON" %}<form method="post" action="{% url 'evenements:publier' object.pk %}">{% csrf_token %}<button class="btn primary full">Publier</button></form>{% endif %}
+        {% if object.statut == "PUBLIE" %}<form method="post" action="{% url 'evenements:annuler' object.pk %}">{% csrf_token %}<button class="btn danger full">Annuler l'événement</button></form>{% endif %}
+        <a class="btn ghost full danger-text" href="{% url 'evenements:supprimer' object.pk %}">Supprimer</a>
+      {% endif %}
+      <p class="muted small">Organisé par {{ object.organisateur }}</p>
+    </aside>
+  </div>
+</article>
+{% endblock %}

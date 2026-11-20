@@ -1,0 +1,59 @@
+{% extends "auth_base.html" %}{% block title %}Créer un compte{% endblock %}{% block card_class %}wide{% endblock %}
+{% block card %}
+<div class="auth-head"><span class="eyebrow">Bienvenue</span><h1>Créer un compte</h1></div>
+<ol class="stepper" id="regSteps"><li class="on"><b>1</b><span>Profil</span></li><li><b>2</b><span>Coordonnées</span></li><li><b>3</b><span>Sécurité</span></li></ol>
+<form method="post" class="aform" id="regForm" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="msg error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+  <fieldset class="step" data-step="1">
+    <legend>Vous êtes…</legend>
+    <div class="roles">
+      {% for val, nom, desc, ico in roles %}
+      <label class="role"><input type="radio" name="role" value="{{ val }}" {% if form.role.value == val or not form.role.value and forloop.first %}checked{% endif %} required>
+        <span><i aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ ico }}"/></svg></i><b>{{ nom }}</b><small>{{ desc }}</small></span></label>
+      {% endfor %}
+    </div>
+    {% for e in form.role.errors %}<small class="err">{{ e }}</small>{% endfor %}
+  </fieldset>
+  <fieldset class="step" data-step="2" hidden>
+    <legend>Vos coordonnées</legend>
+    <div class="two">{% include "partials/auth_field.html" with field=form.first_name %}{% include "partials/auth_field.html" with field=form.last_name %}</div>
+    {% include "partials/auth_field.html" with field=form.username %}
+    {% include "partials/auth_field.html" with field=form.email %}
+    {% include "partials/auth_field.html" with field=form.telephone %}
+  </fieldset>
+  <fieldset class="step" data-step="3" hidden>
+    <legend>Choisissez un mot de passe</legend>
+    {% include "partials/auth_field.html" with field=form.password1 eye=1 %}
+    <div class="meter" aria-hidden="true"><i id="meter"></i></div><small class="muted" id="meterTxt">8 caractères minimum, pas uniquement des chiffres.</small>
+    {% include "partials/auth_field.html" with field=form.password2 eye=1 %}
+    <label class="check"><input type="checkbox" required id="cgu"> J'accepte les conditions d'utilisation d'Évenza</label>
+  </fieldset>
+  <div class="actions">
+    <button class="btn ghost" type="button" id="prev" hidden>← Retour</button>
+    <button class="btn primary" type="button" id="next">Continuer →</button>
+    <button class="btn primary" type="submit" id="send" hidden>Créer mon compte</button>
+  </div>
+</form>
+<p class="auth-alt">Déjà inscrit ? <a href="{% url 'utilisateurs:login' %}">Se connecter</a></p>
+{% endblock %}
+{% block extra_js %}<script>
+(() => {
+  const steps = [...document.querySelectorAll('.step')], lis = [...document.querySelectorAll('#regSteps li')];
+  const prev = document.getElementById('prev'), next = document.getElementById('next'), send = document.getElementById('send');
+  let k = 0;
+  // en cas d'erreur renvoyée par le serveur, on ouvre l'étape concernée
+  const err = steps.findIndex(s => s.querySelector('.err')); if (err >= 0) k = err;
+  const show = () => { steps.forEach((s, i) => s.hidden = i !== k); lis.forEach((l, i) => { l.className = i < k ? 'done' : i === k ? 'on' : ''; l.querySelector('b').textContent = i < k ? '✓' : i + 1; });
+    prev.hidden = k === 0; next.hidden = k === steps.length - 1; send.hidden = k !== steps.length - 1;
+    const f = steps[k].querySelector('input:not([type=radio]):not([type=checkbox])'); if (f) f.focus(); };
+  const ok = () => [...steps[k].querySelectorAll('input')].every(i => i.reportValidity());
+  next.onclick = () => { if (ok()) { k++; show(); } };
+  prev.onclick = () => { k--; show(); };
+  document.getElementById('regForm').addEventListener('keydown', e => { if (e.key === 'Enter' && k < steps.length - 1) { e.preventDefault(); next.click(); } });
+  // force du mot de passe
+  const p = document.getElementById('id_password1'), m = document.getElementById('meter'), t = document.getElementById('meterTxt');
+  p.addEventListener('input', () => { const v = p.value; let s = 0; if (v.length >= 8) s++; if (/[A-Z]/.test(v) && /[a-z]/.test(v)) s++; if (/\d/.test(v)) s++; if (/[^A-Za-z0-9]/.test(v)) s++;
+    m.style.width = (s * 25) + '%'; m.style.background = ['#9E3B3B', '#9E3B3B', '#D0A06D', '#6E8B5E', '#3D6B4F'][s]; t.textContent = ['Trop court', 'Faible', 'Moyen', 'Bon', 'Excellent'][s]; });
+  show();
+})();
+</script>{% endblock %}

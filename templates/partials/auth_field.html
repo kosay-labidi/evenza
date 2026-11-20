@@ -1,0 +1,9 @@
+<div class="afield{% if field.errors %} has-error{% endif %}">
+  <label for="{{ field.id_for_label }}">{{ label|default:field.label }}</label>
+  <div class="ainput">
+    {{ field }}
+    {% if eye %}<button type="button" class="eye" data-eye="{{ field.id_for_label }}" aria-pressed="false">Afficher</button>{% endif %}
+  </div>
+  {% if field.help_text and help %}<small class="muted">{{ field.help_text|safe }}</small>{% endif %}
+  {% for e in field.errors %}<small class="err">{{ e }}</small>{% endfor %}
+</div>

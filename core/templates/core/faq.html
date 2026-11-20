@@ -1,0 +1,40 @@
+{% extends "base.html" %}{% block title %}FAQ{% endblock %}
+{% block banner %}{% include "partials/banner.html" with sur_titre="Aide" titre="Questions fréquentes" texte="Billets, réservations, organisation : les réponses aux questions les plus posées." %}{% endblock %}
+{% block content %}
+<section class="faq">
+  <div class="faq-head">
+    <input type="search" id="faqSearch" placeholder="Rechercher une question…" aria-label="Rechercher dans la FAQ"></div>
+  {% for groupe, questions in faq %}{% with g=forloop.counter %}
+  <div class="faq-group reveal"><h2>{{ groupe }}</h2>
+    <div class="acc" data-accordion>
+      {% for q, r in questions %}
+      <div class="acc-item">
+        <h3 class="acc-q"><button class="acc-btn" type="button" aria-expanded="false" aria-controls="r{{ g }}-{{ forloop.counter }}" id="q{{ g }}-{{ forloop.counter }}">{{ q }}<span class="acc-ico" aria-hidden="true"></span></button></h3>
+        <div class="acc-panel" id="r{{ g }}-{{ forloop.counter }}" role="region" aria-labelledby="q{{ g }}-{{ forloop.counter }}"><div><p>{{ r }}</p></div></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endwith %}{% endfor %}
+  <p class="muted center" id="faqEmpty" hidden>Aucune question ne correspond. <a href="{% url 'core:contact' %}">Écrivez-nous</a>.</p>
+  <div class="card center reveal"><span class="eyebrow">Besoin d'aide ?</span><h2>Vous ne trouvez pas <em>la réponse ?</em></h2><a class="btn primary" href="{% url 'core:contact' %}">Contactez-nous</a></div>
+</section>
+{% endblock %}
+{% block extra_js %}<script>
+// recherche dans la FAQ : masque les questions qui ne correspondent pas et ouvre celles qui correspondent
+(() => {
+  const champ = document.getElementById('faqSearch'), vide = document.getElementById('faqEmpty');
+  const items = [...document.querySelectorAll('.faq .acc-item')];
+  champ.addEventListener('input', () => {
+    const v = champ.value.toLowerCase().trim(); let n = 0;
+    items.forEach(it => {
+      const ok = !v || it.textContent.toLowerCase().includes(v);
+      it.hidden = !ok; if (ok) n++;
+      const ouvrir = !!v && ok;
+      it.classList.toggle('open', ouvrir); it.querySelector('.acc-btn').setAttribute('aria-expanded', ouvrir);
+    });
+    document.querySelectorAll('.faq-group').forEach(g => g.hidden = ![...g.querySelectorAll('.acc-item')].some(i => !i.hidden));
+    vide.hidden = n > 0;
+  });
+})();
+</script>{% endblock %}

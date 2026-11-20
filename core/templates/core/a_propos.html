@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% load static %}{% block title %}À propos{% endblock %}
+{% block body_class %}has-hero{% endblock %}
+{% block banner %}{% static 'img/hero/terrasse.jpg' as photo %}{% include "partials/banner.html" with image=photo sur_titre="À propos" titre="Nous organisons les moments qui comptent" texte="Évenza est une plateforme d'agence événementielle : un seul outil pour créer l'événement, réserver les prestataires, vendre les billets et accueillir les invités." %}{% endblock %}
+{% block content %}
+
+<section class="about-grid">
+  <article class="card reveal"><span class="eyebrow line">Notre mission</span><h2>Moins de tableurs, <em>plus de souvenirs.</em></h2><p class="muted">Un mariage, un concert ou une conférence demandent des dizaines de décisions. Évenza les rassemble au même endroit pour que l'organisateur se concentre sur l'essentiel : ses invités.</p></article>
+  <article class="card reveal" style="--d:.12s"><span class="eyebrow line">Notre méthode</span><h2>Six gestions, <em>une plateforme.</em></h2>
+    <ul class="checks"><li>Utilisateurs et rôles</li><li>Événements et lieux</li><li>Programmes et séances</li><li>Prestataires et réservations</li><li>Participants et billets QR</li><li>Ressources sans conflit</li></ul></article>
+</section>
+<section class="stats-band reveal" style="margin-top:28px">
+  <div><b data-count="{{ chiffres.evenements }}">{{ chiffres.evenements }}</b><span>événements publiés</span></div>
+  <div><b data-count="{{ chiffres.billets }}">{{ chiffres.billets }}</b><span>réservations confirmées</span></div>
+  <div><b data-count="{{ chiffres.prestataires }}">{{ chiffres.prestataires }}</b><span>prestataires réservés</span></div>
+  <div><b>24/7</b><span>billets disponibles en ligne</span></div>
+</section>
+<section class="card team reveal">
+  <div><span class="eyebrow line">L'équipe</span><h2>Un projet ESPRIT · 3IA</h2><p class="muted" style="margin:0">Évenza est réalisé par une équipe d'étudiants en génie logiciel, en Scrum, avec Django et une architecture MVT 3-tiers.</p></div>
+  <div class="actions"><a class="btn primary" href="{% url 'evenements:liste' %}">Voir les événements</a><a class="btn ghost" href="{% url 'core:contact' %}">Nous contacter</a></div>
+</section>
+{% endblock %}

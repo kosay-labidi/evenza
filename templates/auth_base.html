@@ -1,0 +1,51 @@
+{% load static %}<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#512D3B">
+  <title>{% block title %}Compte{% endblock %} · Évenza</title>
+  <link rel="icon" href="{% static 'img/favicon.svg' %}?v=ev2" type="image/svg+xml">
+  <link rel="preload" href="{% static 'fonts/CormorantGaramond.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{% static 'fonts/Inter.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{% static 'css/fonts.css' %}">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+</head>
+<body class="auth">
+  <!-- volet visuel : vidéo d'ambiance sous un voile bordeaux -->
+  <aside class="auth-visual" aria-hidden="true">
+    <video class="auth-bg" autoplay muted loop playsinline poster="{% static 'video/boucle.jpg' %}">
+      <source src="{% static 'video/boucle.mp4' %}" type="video/mp4">
+    </video>
+    <div class="auth-shade"></div>
+    <div class="auth-quote">
+      <span class="eyebrow light line">Évenza</span>
+      <p>Des instants précieux, <em>des souvenirs éternels.</em></p>
+    </div>
+  </aside>
+
+  <div class="auth-side">
+    <header class="auth-top">
+      <a class="logo" href="{% url 'core:home' %}"><img src="{% static 'img/logo.svg' %}?v=ev2" alt="" width="36" height="36"><span>Évenza</span></a>
+      <a class="auth-back" href="{% url 'core:home' %}"><svg width="16" height="10" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M30 7H2M8 1 2 7l6 6"/></svg>Retour au site</a>
+    </header>
+    <main class="auth-main" id="contenu">
+      <section class="auth-card {% block card_class %}{% endblock %}">
+        {% include "partials/messages.html" %}
+        {% block card %}{% endblock %}
+      </section>
+    </main>
+    <p class="auth-foot">© {% now "Y" %} Évenza · <a href="{% url 'core:a_propos' %}">À propos</a> · <a href="{% url 'core:contact' %}">Contact</a> · <a href="{% url 'core:faq' %}">FAQ</a></p>
+  </div>
+  <script>
+    // afficher / masquer le mot de passe
+    document.querySelectorAll('[data-eye]').forEach(b => b.addEventListener('click', () => {
+      const i = document.getElementById(b.dataset.eye); i.type = i.type === 'password' ? 'text' : 'password';
+      b.setAttribute('aria-pressed', i.type === 'text'); b.textContent = i.type === 'text' ? 'Masquer' : 'Afficher'; }));
+    const v = document.querySelector('.auth-bg');
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || matchMedia('(max-width: 900px)').matches) { v.pause(); v.removeAttribute('autoplay'); }
+  </script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

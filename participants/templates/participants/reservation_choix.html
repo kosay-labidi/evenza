@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% block title %}Réserver · {{ evenement.titre }}{% endblock %}
+{% block content %}
+<section class="resa">
+  <ol class="stepper"><li class="on"><b>1</b><span>Billets</span></li><li><b>2</b><span>Récapitulatif</span></li><li><b>3</b><span>Votre billet</span></li></ol>
+  {% include "participants/_resa_head.html" %}
+  <form method="post" class="card form" id="resaForm">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="msg error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+    {% if evenement.types_billet.exists %}
+      <h3>Choisissez votre billet</h3>
+      <div class="tickets">
+        {% for t in evenement.types_billet.all %}
+        <label class="tkt">
+          <input type="radio" name="type_billet" value="{{ t.pk }}" data-prix="{{ t.prix|stringformat:'s' }}" {% if form.type_billet.value|stringformat:'s' == t.pk|stringformat:'s' or not form.type_billet.value and forloop.first %}checked{% endif %} {% if t.restants == 0 %}disabled{% endif %}>
+          <span class="tkt-in"><b>{{ t.nom }}</b><small>{{ t.description|default:"—" }}</small>
+            <em>{% if t.prix %}{{ t.prix|floatformat:0 }} DT{% else %}Gratuit{% endif %}</em>
+            {% if t.restants is not None %}<small class="muted">{% if t.restants %}{{ t.restants }} restant(s){% else %}Épuisé{% endif %}</small>{% endif %}</span>
+        </label>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <div class="qty-row">
+      <label for="id_quantite"><b>Nombre de places</b><small class="muted"> (10 maximum)</small></label>
+      <div class="qty"><button type="button" class="round" data-q="-1" aria-label="Moins">−</button>
+        <select name="quantite" id="id_quantite">{% for i in "123456789"|make_list %}<option value="{{ i }}" {% if form.quantite.value|stringformat:'s' == i %}selected{% endif %}>{{ i }}</option>{% endfor %}<option value="10" {% if form.quantite.value|stringformat:'s' == '10' %}selected{% endif %}>10</option></select>
+        <button type="button" class="round" data-q="1" aria-label="Plus">+</button></div>
+    </div>
+    <div class="total-row"><span>Total</span><b id="total" data-base="{{ evenement.prix|stringformat:'s' }}">—</b></div>
+    <div class="actions"><button class="btn primary" type="submit">Continuer →</button><a class="btn ghost" href="{{ evenement.get_absolute_url }}">Retour</a></div>
+  </form>
+</section>
+{% endblock %}
+{% block extra_js %}<script>
+(() => { const f = document.getElementById('resaForm'), sel = f.querySelector('#id_quantite'), out = document.getElementById('total');
+  const calc = () => { const r = f.querySelector('input[name=type_billet]:checked'); const p = parseFloat(r ? r.dataset.prix : out.dataset.base) || 0;
+    const t = p * +sel.value; out.textContent = t ? t.toLocaleString('fr-FR') + ' DT' : 'Gratuit'; };
+  f.addEventListener('change', calc);
+  f.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { sel.value = Math.min(10, Math.max(1, +sel.value + +b.dataset.q)); calc(); });
+  calc(); })();
+</script>{% endblock %}

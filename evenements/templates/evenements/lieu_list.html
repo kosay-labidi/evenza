@@ -1,0 +1,8 @@
+{% extends "app_base.html" %}{% block title %}Lieux{% endblock %}
+{% block banner %}{% include "partials/banner.html" with sur_titre="Gestion des événements" titre="Lieux" %}{% endblock %}
+{% block content %}
+<div class="sec-head" style="margin-top:0"><h2>Liste</h2><a class="btn primary" href="{% url 'evenements:lieu_creer' %}">+ Nouveau lieu</a></div>
+<div class="table-wrap"><table class="table"><thead><tr><th>Nom</th><th>Ville</th><th>Adresse</th><th>Capacité</th></tr></thead><tbody>
+{% for l in object_list %}<tr><td>{{ l.nom }}</td><td>{{ l.ville }}</td><td>{{ l.adresse }}</td><td>{{ l.capacite }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

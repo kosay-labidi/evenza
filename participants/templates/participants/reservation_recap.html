@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% block title %}Récapitulatif · {{ evenement.titre }}{% endblock %}
+{% block content %}
+<section class="resa">
+  <ol class="stepper"><li class="done"><b>✓</b><span>Billets</span></li><li class="on"><b>2</b><span>Récapitulatif</span></li><li><b>3</b><span>Votre billet</span></li></ol>
+  {% include "participants/_resa_head.html" %}
+  <div class="card">
+    <h3>Récapitulatif</h3>
+    <table class="recap">
+      <tr><td>Billet</td><td>{% if type_billet %}{{ type_billet.nom }}{% else %}Entrée{% endif %}</td></tr>
+      <tr><td>Prix unitaire</td><td>{% if prix_unitaire %}{{ prix_unitaire|floatformat:2 }} DT{% else %}Gratuit{% endif %}</td></tr>
+      <tr><td>Nombre de places</td><td>× {{ quantite }}</td></tr>
+      <tr><td>Participant</td><td>{{ user.get_full_name|default:user.username }} · {{ user.email|default:"—" }}</td></tr>
+      <tr class="sum"><td>Total</td><td>{% if total %}{{ total|floatformat:2 }} DT{% else %}Gratuit{% endif %}</td></tr>
+    </table>
+    {% if complet %}<div class="msg warning">Il ne reste pas assez de places : votre réservation sera placée sur la liste d'attente.</div>{% endif %}
+    <p class="small muted">Démonstration : aucun paiement n'est demandé. Le montant est enregistré avec la réservation.</p>
+    <form method="post" class="actions">{% csrf_token %}
+      {% if type_billet %}<input type="hidden" name="type_billet" value="{{ type_billet.pk }}">{% endif %}
+      <input type="hidden" name="quantite" value="{{ quantite }}"><input type="hidden" name="etape" value="confirmer">
+      <button class="btn primary" type="submit">Confirmer la réservation</button>
+      <a class="btn ghost" href="{% url 'participants:reserver' evenement.pk %}">← Modifier</a>
+    </form>
+  </div>
+</section>
+{% endblock %}

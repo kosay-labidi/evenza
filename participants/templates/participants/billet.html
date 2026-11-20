@@ -1,0 +1,59 @@
+{% extends "base.html" %}{% block title %}Billet{% endblock %}
+{% block content %}
+<section class="resa">
+  <ol class="stepper no-print"><li class="done"><b>✓</b><span>Billets</span></li><li class="done"><b>✓</b><span>Récapitulatif</span></li><li class="on"><b>3</b><span>Votre billet</span></li></ol>
+  <div class="ticket" id="ticket">
+    <div class="t-main">
+      <span class="eyebrow">Évenza · billet</span>
+      <h1>{{ object.evenement.titre }}</h1>
+      <div class="t-info">
+        <div>DATE<b>{{ object.evenement.date_debut|date:"d/m/Y · H:i" }}</b></div>
+        <div>LIEU<b>{{ object.evenement.lieu.nom }}</b></div>
+        <div>BILLET<b>{% if object.type_billet %}{{ object.type_billet.nom }}{% else %}Entrée{% endif %} × {{ object.quantite }}</b></div>
+        <div>PARTICIPANT<b>{{ object.participant }}</b></div>
+        <div>TOTAL<b>{% if object.montant %}{{ object.montant|floatformat:2 }} DT{% else %}Gratuit{% endif %}</b></div>
+      </div>
+      <span class="badge {{ object.statut|lower }}">{{ object.get_statut_display }}</span>{% if object.present %} <span class="badge confirmee">Entrée validée</span>{% endif %}
+    </div>
+    <div class="t-stub"><div id="qr" data-code="{{ object.code_billet }}"></div><code>{{ object.code_court }}</code></div>
+  </div>
+  <div class="actions center-actions no-print">
+    <button class="btn primary" type="button" id="dl">Télécharger le billet (PNG)</button>
+    <button class="btn ghost" type="button" onclick="window.print()">Imprimer</button>
+    <a class="btn ghost" href="{% url 'participants:mes_inscriptions' %}">Mes billets</a>
+  </div>
+  <p class="muted center no-print">Présentez ce QR code (ou le code {{ object.code_court }}) à l'entrée.</p>
+</section>
+{{ billet_js|json_script:"billet-data" }}
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(() => {
+  const el = document.getElementById("qr"), B = JSON.parse(document.getElementById("billet-data").textContent);
+  if (window.QRCode) new QRCode(el, { text: el.dataset.code, width: 150, height: 150, correctLevel: QRCode.CorrectLevel.M });
+  else el.textContent = "QR indisponible hors connexion";
+  // dessine le billet dans un canvas puis le télécharge en image
+  document.getElementById("dl").onclick = async () => {
+    await document.fonts.ready;
+    const W = 1600, H = 640, c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d");
+    const grad = g.createLinearGradient(0, 0, W, H); grad.addColorStop(0, "#FFFDFC"); grad.addColorStop(1, "#F1DCD9");
+    g.fillStyle = "#F7F3EB"; g.fillRect(0, 0, W, H);
+    const r = 40; g.beginPath(); g.roundRect(20, 20, W - 40, H - 40, r); g.fillStyle = grad; g.fill();
+    g.fillStyle = "#512D3B"; g.beginPath(); g.roundRect(1140, 20, W - 1160, H - 40, [0, r, r, 0]); g.fill();
+    g.setLineDash([14, 12]); g.strokeStyle = "rgba(208,160,109,.8)"; g.lineWidth = 3; g.beginPath(); g.moveTo(1140, 50); g.lineTo(1140, H - 50); g.stroke(); g.setLineDash([]);
+    g.fillStyle = "#8A5F33"; g.font = "600 26px Inter, sans-serif"; g.fillText("ÉVENZA · BILLET", 80, 110);
+    g.fillStyle = "#292128"; g.font = "500 72px 'Cormorant Garamond', Georgia, serif";
+    const words = B.titre.split(" "); let line = "", y = 200;
+    for (const w of words) { if (g.measureText(line + w).width > 1000) { g.fillText(line, 80, y); line = ""; y += 76; } line += w + " "; } g.fillText(line, 80, y);
+    const info = [["DATE", B.date], ["LIEU", B.lieu], ["BILLET", B.billet], ["PARTICIPANT", B.participant], ["TOTAL", B.total]];
+    info.forEach(([k, v], i) => { const x = 80 + (i % 3) * 340, yy = 420 + Math.floor(i / 3) * 90;
+      g.fillStyle = "#796D72"; g.font = "600 18px Inter, sans-serif"; g.fillText(k, x, yy); g.fillStyle = "#342630"; g.font = "600 27px Inter, sans-serif"; g.fillText(v, x, yy + 36); });
+    g.fillStyle = "#fff"; g.beginPath(); g.roundRect(1200, 130, 340, 340, 20); g.fill();
+    const q = el.querySelector("canvas") || el.querySelector("img"); if (q) g.drawImage(q, 1220, 150, 300, 300);
+    g.fillStyle = "#fff"; g.font = "700 30px monospace"; g.textAlign = "center"; g.fillText(B.code, 1370, 530);
+    const a = document.createElement("a"); a.download = `billet-evenza-${B.code}.png`; a.href = c.toDataURL("image/png"); a.click();
+  };
+})();
+</script>
+{% endblock %}

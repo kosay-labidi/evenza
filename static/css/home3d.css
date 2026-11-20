@@ -1,0 +1,48 @@
+/* Évenza · accueil « 5 mondes » : la scène 3D reste en fond, le contenu défile par-dessus. */
+body.film2{background:#050409}
+.film2 .nav{position:fixed;left:0;right:0;background:linear-gradient(rgba(5,4,9,.75),transparent);border-bottom:0;backdrop-filter:none}
+.film2 .messages{position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:12;width:min(600px,92vw)}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0}
+.shade{position:fixed;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(5,4,9,.55),transparent 45%,transparent 60%,rgba(5,4,9,.35))}
+#loader{position:fixed;inset:0;z-index:20;background:#050409;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .8s}
+#loader span{font-family:var(--display);font-weight:900;font-size:clamp(32px,6vw,64px)}
+#loader div{width:min(260px,60vw);height:2px;background:var(--line);overflow:hidden}
+#ldbar{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--magenta),var(--amber));transition:width .3s}
+
+#flow{position:relative;z-index:2}
+.intro-sec{height:150vh}
+.intro-in{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding-inline:max(16px,4vw)}
+.intro-in h1{font-size:clamp(46px,10vw,150px);font-weight:900;line-height:.9;margin:0;text-shadow:0 10px 60px rgba(0,0,0,.7)}
+.intro-in p{margin:0;color:#e9e4ff;max-width:46ch;font-size:clamp(15px,1.6vw,19px);text-shadow:0 2px 20px #000}
+.scroll-hint{margin-top:18px;font-size:11px;letter-spacing:.24em;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:8px}
+.scroll-hint i{width:1px;height:46px;background:linear-gradient(var(--ink),transparent);animation:hint 1.6s ease-in-out infinite;transform-origin:top}
+@keyframes hint{0%{transform:scaleY(0)}50%{transform:scaleY(1)}100%{transform:scaleY(1);opacity:0}}
+
+.world-sec{height:230vh;position:relative;background-size:cover;background-position:center}
+.world-card{position:sticky;top:max(90px,22vh);width:min(460px,calc(100% - 32px));margin-left:max(16px,6vw);display:flex;flex-direction:column;gap:12px;
+  padding:26px;border-radius:24px;background:rgba(8,7,13,.5);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:0 30px 80px rgba(0,0,0,.45);opacity:0;transform:translateY(40px);transition:opacity .9s cubic-bezier(.2,.8,.2,1),transform .9s cubic-bezier(.2,.8,.2,1)}
+.world-card.right{margin-left:auto;margin-right:max(16px,6vw)}
+.world-card.in{opacity:1;transform:none}
+.world-card .num{font-family:var(--display);font-size:13px;color:var(--muted)}
+.world-card h2{font-size:clamp(30px,4vw,54px);margin:0;line-height:1}
+.world-card h2 em{font-style:normal;background:linear-gradient(90deg,var(--magenta),var(--amber));-webkit-background-clip:text;background-clip:text;color:transparent}
+.world-card p{margin:0;color:#ddd6f0;line-height:1.6}
+.world-card .facts{display:flex;gap:8px;flex-wrap:wrap}
+.world-card .facts span{font-size:12px;padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05)}
+.world-card .btn{align-self:flex-start}
+@media (max-width:760px){.world-card,.world-card.right{margin-inline:auto;top:auto;position:sticky;bottom:24px}.world-sec{display:flex;align-items:flex-end}}
+
+.rail{position:fixed;right:max(14px,2vw);top:50%;transform:translateY(-50%);z-index:5;display:flex;flex-direction:column;gap:14px}
+.rail a{display:flex;align-items:center;gap:10px;justify-content:flex-end;color:var(--muted);font-size:12px;text-decoration:none}
+.rail a span{opacity:0;transform:translateX(6px);transition:.3s}
+.rail a i{width:10px;height:10px;border-radius:50%;border:1px solid rgba(255,255,255,.5);transition:.3s}
+.rail a.on i{background:var(--amber);border-color:var(--amber);box-shadow:0 0 12px var(--amber);transform:scale(1.3)}
+.rail a.on span,.rail a:hover span{opacity:1;transform:none;color:var(--ink)}
+@media (max-width:760px){.rail{display:none}}
+
+.after{position:relative;z-index:2;background:linear-gradient(rgba(5,4,9,.4),rgba(5,4,9,.86) 25%);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding-top:60px}
+body.static .intro-sec{height:auto}.body.static .intro-in{position:relative}
+body.static .world-sec{height:auto;min-height:90vh;display:flex;align-items:center;padding-block:80px}
+body.static .world-card{position:relative;top:auto;opacity:1;transform:none}
+body.static #gl,body.static .rail{display:none}

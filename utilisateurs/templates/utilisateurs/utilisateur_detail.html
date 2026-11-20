@@ -1,0 +1,39 @@
+{% extends "app_base.html" %}{% block title %}{{ compte.username }}{% endblock %}
+{% block banner %}
+<section class="page-banner">
+  <div><span class="eyebrow">{{ compte.get_role_display }}</span><h1>{{ compte.get_full_name|default:compte.username }}</h1><p>@{{ compte.username }} · inscrit le {{ compte.date_joined|date:"d/m/Y" }}</p></div>
+  <div class="actions">
+    <a class="btn primary" href="{% url 'utilisateurs:utilisateur_modifier' compte.pk %}">Modifier</a>
+    {% if compte.pk != user.pk %}<a class="btn ghost danger-text" href="{% url 'utilisateurs:utilisateur_supprimer' compte.pk %}">Supprimer</a>{% endif %}
+    <a class="btn ghost" href="{% url 'utilisateurs:utilisateur_liste' %}">← Liste</a>
+  </div>
+</section>
+{% endblock %}
+{% block content %}
+<div class="dash-grid">
+  <section class="panel">
+    <div class="panel-head"><h2>Événements organisés</h2><span class="muted small">{{ compte.evenements_organises.count }}</span></div>
+    <div class="table-wrap flat"><table class="table"><thead><tr><th>Titre</th><th>Date</th><th>Lieu</th><th>Statut</th></tr></thead><tbody>
+    {% for e in evenements %}<tr><td><a href="{{ e.get_absolute_url }}">{{ e.titre }}</a></td><td>{{ e.date_debut|date:"d/m/Y H:i" }}</td><td>{{ e.lieu.ville }}</td><td><span class="badge {{ e.statut|lower }}">{{ e.get_statut_display }}</span></td></tr>
+    {% empty %}<tr><td colspan="4" class="muted">Aucun événement organisé.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>Coordonnées</h2></div>
+    <ul class="tlist">
+      <li><span class="muted">E-mail</span><b>{{ compte.email|default:"—" }}</b></li>
+      <li><span class="muted">Téléphone</span><b>{{ compte.telephone|default:"—" }}</b></li>
+      <li><span class="muted">Rôle</span><b>{{ compte.get_role_display }}</b></li>
+      <li><span class="muted">Statut</span><b>{% if compte.is_active %}Actif{% else %}Désactivé{% endif %}</b></li>
+      <li><span class="muted">Dernière connexion</span><b>{{ compte.last_login|date:"d/m/Y H:i"|default:"Jamais" }}</b></li>
+    </ul>
+  </section>
+</div>
+<section class="panel">
+  <div class="panel-head"><h2>Inscriptions</h2><span class="muted small">{{ compte.inscriptions.count }}</span></div>
+  <div class="table-wrap flat"><table class="table"><thead><tr><th>Événement</th><th>Date</th><th>Places</th><th>Statut</th></tr></thead><tbody>
+  {% for i in inscriptions %}<tr><td><a href="{{ i.evenement.get_absolute_url }}">{{ i.evenement }}</a></td><td>{{ i.evenement.date_debut|date:"d/m/Y" }}</td><td>× {{ i.quantite }}</td><td><span class="badge {{ i.statut|lower }}">{{ i.get_statut_display }}</span></td></tr>
+  {% empty %}<tr><td colspan="4" class="muted">Aucune inscription.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}

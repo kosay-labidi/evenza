@@ -1,0 +1,13 @@
+{% extends "app_base.html" %}
+{% block banner %}<section class="page-banner"><div class="container"><span class="eyebrow">Confirmation</span><h1>Supprimer « {{ object }} » ?</h1></div></section>{% endblock %}
+{% block content %}
+<section class="card narrow center form-card">
+  <div class="icon-badge danger" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></div>
+  <p class="lead" style="margin-inline:auto">Cette action est définitive : « {{ object }} » sera supprimé.</p>
+  {% block details %}{% endblock %}
+  <form method="post" class="actions center-actions">{% csrf_token %}
+    <button class="btn danger" type="submit">Oui, supprimer</button>
+    <a class="btn ghost" href="javascript:history.back()">Annuler</a>
+  </form>
+</section>
+{% endblock %}

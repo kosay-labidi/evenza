@@ -1,0 +1,9 @@
+{# Bandeau bleu en haut des pages : include avec titre, sur_titre, texte, image (optionnel) #}
+<section class="page-banner{% if image %} has-img{% endif %}">
+  {% if image %}<img src="{{ image }}" alt="">{% endif %}
+  <div class="container">
+    {% if sur_titre %}<span class="eyebrow">{{ sur_titre }}</span>{% endif %}
+    <h1>{{ titre }}</h1>
+    {% if texte %}<p>{{ texte }}</p>{% endif %}
+  </div>
+</section>

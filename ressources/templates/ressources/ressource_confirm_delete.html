@@ -1,0 +1,2 @@
+{% extends "confirm_base.html" %}{% block title %}Supprimer une ressource{% endblock %}
+{% block details %}{% if nb_affectations %}<div class="msg warning" style="text-align:left"><span>Cette ressource est affectée à <b>{{ nb_affectations }} créneau{{ nb_affectations|pluralize:"x" }}</b> : la suppression sera refusée tant que ses affectations existent.</span></div>{% endif %}{% endblock %}

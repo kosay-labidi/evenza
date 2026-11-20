@@ -1,0 +1,47 @@
+{% load static %}
+{# Intro vidéo facultative : couche posée au-dessus de l'accueil. Sans JavaScript ou avec « réduire les animations », elle ne s'affiche jamais.
+   Pour changer de vidéo : remplacer les fichiers dans static/video/ (paysage 16:9 + portrait 9:16, MP4 H.264, idéalement < 5 Mo).
+   data-max = durée maximale de l'intro en secondes (la vidéo est coupée en fondu au-delà). #}
+{# « intro--logo » : la vidéo contient déjà le logo, le nom et le slogan → le texte superposé est masqué. Retirer la classe pour une vidéo sans logo. #}
+<div class="intro intro--logo" id="intro" role="dialog" aria-modal="true" aria-label="Introduction Évenza" hidden
+     data-scene="{% static 'js/intro-video.js' %}" data-max="7">
+  {# WebM (VP9) si le navigateur le lit, sinon MP4 (H.264). #}
+  <video class="intro-video" muted playsinline preload="none" aria-hidden="true"
+         data-paysage="{% static 'video/evenza-intro7.mp4' %}" data-portrait="{% static 'video/evenza-intro7-portrait.mp4' %}"
+         data-paysage-webm="{% static 'video/evenza-intro7.webm' %}" data-portrait-webm="{% static 'video/evenza-intro7-portrait.webm' %}"
+         data-poster-paysage="{% static 'video/intro7-poster.jpg' %}" data-poster-portrait="{% static 'video/intro7-poster-portrait.jpg' %}"></video>
+  <div class="intro-scrim" aria-hidden="true"></div>
+  <div class="intro-ui">
+    <p class="intro-brand">ÉVENZA</p>
+    <p class="intro-line">Un soir en Méditerranée</p>
+    <button type="button" class="intro-go" data-intro-go>Découvrir Évenza</button>
+  </div>
+  <button type="button" class="intro-skip" data-intro-skip>Passer l'intro <span aria-hidden="true">›</span></button>
+  <audio data-intro-audio src="{% static 'audio/ambiance.mp3' %}" preload="none" loop aria-hidden="true"></audio>
+  <button type="button" class="intro-sound" data-intro-sound aria-pressed="false" hidden>Son</button>
+  <div class="intro-veil" aria-hidden="true"></div>
+</div>
+{# Film 30 s : lecture à la demande (« ?film=1 » ou lien « Revoir le film »). Ken Burns sur les photos, sans fichier vidéo. #}
+<div class="film" id="film" hidden aria-label="Film — Un soir en Méditerranée"
+     data-audio="{% static 'audio/film.mp3' %}"
+     data-img="{% static 'img/categories/mariage.jpg' %}|{% static 'img/categories/gala.jpg' %}|{% static 'img/categories/festival.jpg' %}|{% static 'img/categories/concert.jpg' %}|{% static 'img/categories/conference.jpg' %}|{% static 'img/hero/mer.jpg' %}"></div>
+<script src="{% static 'js/film.js' %}" defer></script>
+<script>
+(() => {
+  const el = document.getElementById('intro'); if (!el) return;
+  const p = new URLSearchParams(location.search);
+  let vue = false; try { vue = sessionStorage.getItem('evenza-intro') === 'vue'; } catch (e) {}
+  const force = p.get('intro') === '1';
+  if (p.get('intro') === '0' || p.get('film') === '1' || matchMedia('(prefers-reduced-motion: reduce)').matches || (vue && !force)) return;
+  // économie de données activée : pas de vidéo
+  if (navigator.connection && navigator.connection.saveData) return;
+  el.hidden = false;
+  document.documentElement.classList.add('intro-on');
+  const main = document.getElementById('contenu'); if (main) main.inert = true;
+  const charger = src => new Promise((ok, ko) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); });
+  window.__evenzaIntro = { el, charger };
+  charger(el.dataset.scene).catch(() => window.__evenzaIntroFin && window.__evenzaIntroFin());
+  // filet de sécurité : si la vidéo n'a pas démarré en 4 s (réseau lent, lecture bloquée), on montre le site
+  setTimeout(() => { if (!el.classList.contains('pret')) (window.__evenzaIntroFin || (() => { el.remove(); document.documentElement.classList.remove('intro-on'); if (main) main.inert = false; }))(); }, 4000);
+})();
+</script>

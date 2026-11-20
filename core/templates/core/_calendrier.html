@@ -1,0 +1,13 @@
+{# Calendrier du mois : jours marqués = événements réels (organisés ou réservés). #}
+<section class="panel cal" aria-labelledby="cal-titre">
+  <div class="panel-head"><h2 id="cal-titre">{{ calendrier.mois|date:"F Y"|capfirst }}</h2><span class="muted small">Calendrier</span></div>
+  <table class="cal-grid">
+    <thead><tr><th scope="col" abbr="lundi">L</th><th scope="col" abbr="mardi">M</th><th scope="col" abbr="mercredi">M</th><th scope="col" abbr="jeudi">J</th><th scope="col" abbr="vendredi">V</th><th scope="col" abbr="samedi">S</th><th scope="col" abbr="dimanche">D</th></tr></thead>
+    <tbody>{% for semaine in calendrier.semaines %}<tr>{% for j in semaine %}<td>{% if j %}<span class="cal-d{% if j.evts %} has{% endif %}{% if j.aujourdhui %} today{% endif %}"{% if j.evts %} title="{% for e in j.evts %}{{ e.titre }}{% if not forloop.last %} · {% endif %}{% endfor %}"{% endif %}>{{ j.jour }}</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
+  </table>
+  {% if calendrier.evenements %}
+  <ul class="cal-list">
+    {% for e in calendrier.evenements|slice:":4" %}<li><a href="{{ e.get_absolute_url }}"><span class="cal-date"><b>{{ e.date_debut|date:"d" }}</b>{{ e.date_debut|date:"M" }}</span><span><b>{{ e.titre }}</b><small>{{ e.date_debut|date:"H:i" }} · {{ e.lieu.ville }}</small></span></a></li>{% endfor %}
+  </ul>
+  {% else %}<p class="muted small" style="margin:16px 0 0">Aucun événement ce mois-ci.</p>{% endif %}
+</section>

@@ -1,0 +1,56 @@
+{% load static %}{% with app=request.resolver_match.app_name url=request.resolver_match.url_name %}
+<header class="nav" id="nav">
+  <div class="container nav-in">
+    <a class="logo" href="{% url 'core:home' %}" aria-label="Évenza, accueil">
+      <img src="{% static 'img/logo.svg' %}?v=ev2" alt="" width="36" height="36">
+      <span>Évenza</span>
+    </a>
+
+    <nav class="nav-links" id="nav-links" aria-label="Menu principal">
+      <a href="{% url 'core:home' %}" class="{% if app == 'core' and url == 'home' %}active{% endif %}" {% if app == 'core' and url == 'home' %}aria-current="page"{% endif %}><span class="n">01</span>Accueil</a>
+      <a href="{% url 'evenements:liste' %}" class="{% if app == 'evenements' and url == 'liste' or app == 'evenements' and url == 'detail' %}active{% endif %}" {% if app == 'evenements' and url == 'liste' %}aria-current="page"{% endif %}><span class="n">02</span>Événements</a>
+      <a href="{% url 'core:a_propos' %}" class="{% if url == 'a_propos' %}active{% endif %}" {% if url == 'a_propos' %}aria-current="page"{% endif %}><span class="n">03</span>À propos</a>
+      <a href="{% url 'core:faq' %}" class="{% if url == 'faq' %}active{% endif %}" {% if url == 'faq' %}aria-current="page"{% endif %}><span class="n">04</span>FAQ</a>
+      <a href="{% url 'core:contact' %}" class="{% if url == 'contact' %}active{% endif %}" {% if url == 'contact' %}aria-current="page"{% endif %}><span class="n">05</span>Contact</a>
+      {% if user.is_authenticated %}
+        <a href="{% url 'participants:mes_inscriptions' %}" class="{% if app == 'participants' %}active{% endif %}"><span class="n">06</span>Mes billets</a>
+      {% endif %}
+      <div class="nav-mobile-actions">
+        {% if user.is_authenticated %}
+          <a class="btn primary sm" href="{% url 'core:dashboard' %}">Tableau de bord</a>
+          <a href="{% url 'utilisateurs:profil' %}">Mon profil</a>
+          {% if user.est_organisateur %}<a href="{% url 'evenements:mes_evenements' %}">Mes événements</a><a href="{% url 'evenements:creer' %}">Créer un événement</a>{% endif %}
+          <form method="post" action="{% url 'utilisateurs:logout' %}">{% csrf_token %}<button class="btn ghost sm" type="submit">Déconnexion</button></form>
+        {% else %}
+          <a class="btn primary sm" href="{% url 'evenements:liste' %}">Réserver un événement</a>
+          <a href="{% url 'utilisateurs:login' %}">Connexion</a><a href="{% url 'utilisateurs:register' %}">Créer un compte</a>
+        {% endif %}
+      </div>
+      <p class="nav-mobile-foot">{{ CONTACT.email }}{% if CONTACT.telephone %} · {{ CONTACT.telephone }}{% endif %}</p>
+    </nav>
+
+    <div class="nav-actions">
+      {% if user.is_authenticated %}
+        {% if user.est_organisateur %}<a class="btn primary sm hide-sm" href="{% url 'evenements:creer' %}">Créer un événement</a>{% endif %}
+        <details class="user-menu">
+          <summary aria-label="Mon compte"><span class="avatar">{{ user.username|first|upper }}</span><span class="hide-sm">{{ user.first_name|default:user.username }}</span></summary>
+          <div class="menu-pop">
+            <small>{{ user.get_role_display }}</small>
+            <a href="{% url 'core:dashboard' %}">Tableau de bord</a>
+            <a href="{% url 'participants:mes_inscriptions' %}">Mes billets</a>
+            <a href="{% url 'utilisateurs:profil' %}">Mon profil</a>
+            {% if user.est_organisateur %}<hr><a href="{% url 'evenements:mes_evenements' %}">Mes événements</a><a href="{% url 'evenements:lieux' %}">Lieux</a><a href="{% url 'prestataires:liste' %}">Prestataires</a><a href="{% url 'ressources:liste' %}">Ressources</a><a href="{% url 'programmes:intervenants' %}">Intervenants</a>{% endif %}
+            {% if user.est_admin %}<a href="{% url 'utilisateurs:utilisateur_liste' %}">Utilisateurs</a><a href="{% url 'admin:index' %}">Administration</a>{% endif %}
+            <hr>
+            <form method="post" action="{% url 'utilisateurs:logout' %}">{% csrf_token %}<button type="submit">Déconnexion</button></form>
+          </div>
+        </details>
+      {% else %}
+        <a class="nav-login hide-sm" href="{% url 'utilisateurs:login' %}">Connexion</a>
+        <a class="btn primary sm hide-sm" href="{% url 'evenements:liste' %}">Réserver <svg class="arrow" width="16" height="10" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M0 7h28M22 1l6 6-6 6"/></svg></a>
+      {% endif %}
+      <button class="burger" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="nav-links" data-toggle="nav-links"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</header>
+{% endwith %}

@@ -1,0 +1,8 @@
+{% extends "confirm_base.html" %}{% block title %}Supprimer un utilisateur{% endblock %}
+{% block details %}
+{% if nb_evenements or nb_inscriptions %}
+<div class="msg warning" style="text-align:left"><span>Attention : seront aussi supprimés
+  {% if nb_evenements %}<b>{{ nb_evenements }} événement{{ nb_evenements|pluralize }}</b> organisé{{ nb_evenements|pluralize }} par ce compte (avec leurs séances, billets et inscriptions){% endif %}{% if nb_evenements and nb_inscriptions %} et {% endif %}{% if nb_inscriptions %}<b>{{ nb_inscriptions }} inscription{{ nb_inscriptions|pluralize }}</b>{% endif %}.
+  Pour garder ces données, désactivez plutôt le compte (« Modifier » → décocher « Compte actif »).</span></div>
+{% endif %}
+{% endblock %}

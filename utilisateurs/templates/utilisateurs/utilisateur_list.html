@@ -1,0 +1,21 @@
+{% extends "app_base.html" %}{% block title %}Utilisateurs{% endblock %}
+{% block banner %}{% include "partials/banner.html" with sur_titre="Gestion des utilisateurs" titre="Utilisateurs" texte="Tous les comptes de la plateforme : participants, organisateurs, prestataires, clients et administrateurs." %}{% endblock %}
+{% block content %}
+<div class="sec-head" style="margin-top:0"><h2>Liste</h2><a class="btn primary" href="{% url 'utilisateurs:utilisateur_creer' %}">+ Nouvel utilisateur</a></div>
+<form class="filters" method="get" role="search" style="grid-template-columns:1.6fr 1fr auto">
+  <input type="search" name="q" value="{{ q }}" placeholder="Nom, identifiant ou e-mail…" aria-label="Rechercher un utilisateur">
+  <select name="role" aria-label="Rôle"><option value="">Tous les rôles</option>{% for val, nom in roles %}<option value="{{ val }}" {% if request.GET.role == val %}selected{% endif %}>{{ nom }}</option>{% endfor %}</select>
+  <button class="btn primary sm">Filtrer</button>
+</form>
+<div class="table-wrap"><table class="table"><thead><tr><th>Identifiant</th><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Événements</th><th>Inscriptions</th><th>Statut</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
+{% for u in object_list %}<tr>
+  <td><a href="{% url 'utilisateurs:utilisateur_detail' u.pk %}">{{ u.username }}</a></td>
+  <td>{{ u.get_full_name|default:"—" }}</td><td>{{ u.email|default:"—" }}</td>
+  <td><span class="chip soft">{{ u.get_role_display }}</span></td>
+  <td>{{ u.nb_evenements }}</td><td>{{ u.nb_inscriptions }}</td>
+  <td>{% if u.is_active %}<span class="badge confirmee">Actif</span>{% else %}<span class="badge annulee">Désactivé</span>{% endif %}</td>
+  <td class="row-actions"><a class="btn ghost sm" href="{% url 'utilisateurs:utilisateur_modifier' u.pk %}">Modifier</a>{% if u.pk != user.pk %}<a class="btn ghost sm danger-text" href="{% url 'utilisateurs:utilisateur_supprimer' u.pk %}">Supprimer</a>{% endif %}</td>
+</tr>{% empty %}<tr><td colspan="8" class="muted">Aucun utilisateur ne correspond.</td></tr>{% endfor %}
+</tbody></table></div>
+{% include "partials/pagination.html" %}
+{% endblock %}

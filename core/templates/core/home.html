@@ -1,0 +1,255 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Accueil{% endblock %}
+{% block body_class %}home has-hero{% endblock %}
+{% block extra_head %}
+<link rel="preload" as="image" href="{% static 'img/home/gala.jpg' %}" fetchpriority="high">
+<link rel="stylesheet" href="{% static 'css/home.css' %}">
+{% endblock %}
+{% block main %}
+<main id="contenu">
+
+  <!-- 2 · HERO -->
+  <section class="hero" aria-labelledby="mx-titre">
+    <div class="hero-media" data-parallax="5">
+      <img src="{% static 'img/home/gala.jpg' %}" alt="" width="1600" height="1067" fetchpriority="high">
+    </div>
+    <div class="hero-shade" aria-hidden="true"></div>
+    <div class="container hero-in">
+      <span class="eyebrow light line hero-k">Agence événementielle · Tunisie</span>
+      <h1 class="hero-title" id="mx-titre" data-split>Des instants précieux, <em>des souvenirs éternels.</em></h1>
+      <p class="hero-sub">EVENZA imagine et organise vos événements avec élégance, créativité et passion.</p>
+      <div class="actions hero-cta">
+        <a class="btn primary" href="{% url 'evenements:liste' %}">Découvrir nos événements <svg class="arrow" width="18" height="10" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M0 7h28M22 1l6 6-6 6"/></svg></a>
+        <a class="btn light" href="{% url 'core:contact' %}">Nous contacter</a>
+      </div>
+    </div>
+    {% if vedette %}
+    <a class="hero-next" href="{{ vedette.get_absolute_url }}">
+      <span class="hero-next-img"><img src="{{ vedette.image_url }}" alt="" width="96" height="96"></span>
+      <span class="hero-next-txt"><small>Prochainement</small><b>{{ vedette.titre }}</b><span>{{ vedette.date_debut|date:"j F Y" }} · {{ vedette.lieu.ville }}</span></span>
+      <svg width="20" height="12" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M0 7h28M22 1l6 6-6 6"/></svg>
+    </a>
+    {% endif %}
+  </section>
+
+  <!-- recherche (catégorie, ville, date) — reliée au catalogue -->
+  <div class="container">
+    <form class="hero-search reveal" method="get" action="{% url 'evenements:liste' %}" role="search" aria-label="Rechercher un événement">
+      <label><span>Événement</span><input type="search" name="q" placeholder="Mariage, concert…"></label>
+      <label><span>Catégorie</span><select name="categorie"><option value="">Toutes</option>{% for c in categories %}<option value="{{ c.pk }}">{{ c.nom }}</option>{% endfor %}</select></label>
+      <label><span>Ville</span><select name="ville"><option value="">Toute la Tunisie</option>{% for v in villes %}<option>{{ v }}</option>{% endfor %}</select></label>
+      <label><span>À partir du</span><input type="date" name="date"></label>
+      <button class="btn primary" type="submit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Rechercher</button>
+    </form>
+  </div>
+
+  <!-- 3 · INTRODUCTION -->
+  <section class="section container iv" aria-labelledby="iv-titre">
+    <div class="iv-media">
+      <figure class="iv-a reveal-img" data-parallax="4"><img src="{% static 'img/home/mariage.jpg' %}" alt="Les mariés main dans la main, la mariée tenant son bouquet" loading="lazy" width="1920" height="1080"></figure>
+      <figure class="iv-b reveal-img" style="--d:.25s"><img src="{% static 'img/hero/terrasse.jpg' %}" alt="Table de réception dressée avec bougies, verres en cristal et nappe ivoire" loading="lazy" width="1620" height="1080"></figure>
+      <span class="iv-seal reveal" style="--d:.5s" aria-hidden="true"><svg viewBox="0 0 120 120"><defs><path id="cercle" d="M60 60m-46 0a46 46 0 1 1 92 0a46 46 0 1 1-92 0"/></defs><text><textPath href="#cercle">ÉVENZA · L'ART DE RECEVOIR · ÉVENZA ·</textPath></text></svg><b>E</b></span>
+    </div>
+    <div class="iv-text reveal">
+      <span class="eyebrow line">L'agence Évenza</span>
+      <h2 id="iv-titre" data-split>L'art de recevoir, <em>réinventé.</em></h2>
+      <p class="lead">Un mariage, un gala, une conférence ou un festival demandent des dizaines de décisions. Évenza les réunit en un seul endroit : le lieu, le programme, les prestataires, la billetterie et l'accueil de vos invités.</p>
+      <p class="muted">Notre équipe accompagne chaque projet avec le souci du détail, pour que vous viviez pleinement le jour J.</p>
+      <ul class="iv-facts">
+        <li><b>{{ chiffres.lieux }}</b><span>lieu{{ chiffres.lieux|pluralize:"x" }} d'exception</span></li>
+        <li><b>{{ chiffres.prestataires }}</b><span>prestataire{{ chiffres.prestataires|pluralize }} partenaire{{ chiffres.prestataires|pluralize }}</span></li>
+      </ul>
+      <a class="btn ghost" href="{% url 'core:a_propos' %}">En savoir plus <svg class="arrow" width="18" height="10" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M0 7h28M22 1l6 6-6 6"/></svg></a>
+    </div>
+  </section>
+
+  <!-- 4 · TYPES D'ÉVÉNEMENTS (catégories réelles) -->
+  {% if categories %}
+  <section class="section cats" aria-labelledby="cats-titre">
+    <div class="container">
+      <div class="s-head reveal">
+        <div><span class="eyebrow line">Nos univers</span><h2 id="cats-titre" data-split>Chaque occasion mérite <em>sa mise en scène</em></h2></div>
+        <a class="link-line" href="{% url 'evenements:liste' %}">Tout l'agenda <svg width="16" height="10" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M0 7h28M22 1l6 6-6 6"/></svg></a>
+      </div>
+      <div class="cats-grid stagger">
+        {% for c in categories %}
+        <a class="cat-card{% if categories|length == 5 and forloop.counter <= 2 or categories|length|divisibleby:2 %} big{% endif %}" href="{% url 'evenements:liste' %}?categorie={{ c.pk }}">
+          <img src="{{ c.image_url }}" alt="" loading="lazy" width="1200" height="800">
+          <span class="cat-frame" aria-hidden="true"></span>
+          <span class="cat-n" aria-hidden="true">{{ forloop.counter|stringformat:"02d" }}</span>
+          <span class="cat-txt">
+            <h3>{{ c.nom }}</h3>
+            <small>{% if c.nb %}{{ c.nb }} événement{{ c.nb|pluralize }} à venir{% else %}Bientôt au programme{% endif %}</small>
+            <span class="cat-go">Explorer <svg width="18" height="10" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M0 7h28M22 1l6 6-6 6"/></svg></span>
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- 5 · NOS SERVICES (fonctionnalités réelles de la plateforme) -->
+  <section class="section container sv" aria-labelledby="sv-titre">
+    <div class="sv-side reveal">
+      <span class="eyebrow line">Nos services</span>
+      <h2 id="sv-titre" data-split>De l'idée <em>au dernier invité</em></h2>
+      <p class="muted">Tout ce qu'il faut pour concevoir, vendre et accueillir un événement, réuni dans une seule maison.</p>
+      <figure class="sv-img reveal-img"><img src="{% static 'img/home/conference.jpg' %}" alt="Orateur au pupitre lors d'une conférence" loading="lazy" width="1260" height="900"></figure>
+    </div>
+    <div class="sv-grid stagger">
+      <article class="sv-card">
+        <span class="sv-ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M7.5 13.5h3M7.5 16.5h6"/></svg></span>
+        <span class="sv-n">01</span>
+        <h3>Conception &amp; programme</h3>
+        <p>Création de l'événement, séances, salles et intervenants : un programme clair, modifiable à tout moment.</p>
+        {% if user.is_authenticated and user.est_organisateur %}<a class="link-line" href="{% url 'evenements:creer' %}">Créer un événement</a>{% else %}<a class="link-line" href="{% url 'core:contact' %}">Parler de mon projet</a>{% endif %}
+      </article>
+      <article class="sv-card">
+        <span class="sv-ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M15 6v12" stroke-dasharray="1.5 2"/></svg></span>
+        <span class="sv-n">02</span>
+        <h3>Billetterie &amp; QR codes</h3>
+        <p>Types de billets (Standard, VIP, Étudiant…), réservation jusqu'à 10 places, billet QR et contrôle d'entrée le jour J.</p>
+        <a class="link-line" href="{% url 'evenements:liste' %}">Réserver un billet</a>
+      </article>
+      <article class="sv-card">
+        <span class="sv-ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.4 7.2 17.9l.9-5.4-3.9-3.8 5.4-.8z"/></svg></span>
+        <span class="sv-n">03</span>
+        <h3>Prestataires partenaires</h3>
+        <p>Des partenaires choisis, réservés pour les services qu'ils proposent réellement.</p>
+        {% if types_services %}<ul class="sv-tags">{% for t in types_services %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
+        <a class="link-line" href="{% url 'core:contact' %}">Devenir partenaire</a>
+      </article>
+      <article class="sv-card">
+        <span class="sv-ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
+        <span class="sv-n">04</span>
+        <h3>Lieux &amp; ressources</h3>
+        <p>Salles, matériel et véhicules affectés sans conflit : une ressource n'est jamais réservée deux fois sur le même créneau.</p>
+        <a class="link-line" href="{% url 'core:faq' %}">Comment ça marche</a>
+      </article>
+    </div>
+  </section>
+
+  <!-- 6 · PORTFOLIO / GALERIE (événements publiés réels) -->
+  {% if galerie %}
+  <section class="section gal-sec" aria-labelledby="gal-titre">
+    <div class="container">
+      <div class="s-head reveal">
+        <div><span class="eyebrow line">Portfolio</span><h2 id="gal-titre" data-split>À l'affiche <em>cette saison</em></h2></div>
+        {% if galerie_cats|length > 1 %}
+        <div class="gal-filters" role="group" aria-label="Filtrer par catégorie" data-filtres="galerie">
+          <button type="button" data-f="*" aria-pressed="true">Tous</button>
+          {% for c in galerie_cats %}<button type="button" data-f="{{ c.pk }}" aria-pressed="false">{{ c.nom }}</button>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      <div class="gal gal-{{ galerie|length }}" id="galerie">
+        {% for e in galerie %}
+        <a class="gal-item reveal" style="--d: {% cycle '0s' '.1s' '.2s' %}" href="{{ e.get_absolute_url }}" data-cat="{{ e.categorie_id }}">
+          <img src="{{ e.image_url }}" alt="" loading="lazy">
+          <span class="gal-over">
+            <small>{{ e.categorie }} · {{ e.date_debut|date:"j M Y" }}</small>
+            <b>{{ e.titre }}</b>
+            <span class="gal-meta">{{ e.lieu.ville }} · {% if e.prix_min %}dès {{ e.prix_min|floatformat:0 }} DT{% else %}Gratuit{% endif %}</span>
+          </span>
+          <span class="gal-go" aria-hidden="true"><svg width="18" height="10" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M0 7h28M22 1l6 6-6 6"/></svg></span>
+        </a>
+        {% endfor %}
+      </div>
+      <div class="center reveal" style="margin-top:44px"><a class="btn ghost" href="{% url 'evenements:liste' %}">Voir tout l'agenda</a></div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- 7 · POURQUOI EVENZA ? -->
+  <section class="why on-dark" aria-labelledby="why-titre">
+    <div class="container why-in">
+      <div class="why-head reveal">
+        <span class="eyebrow line">Pourquoi Évenza ?</span>
+        <h2 id="why-titre" data-split>Une organisation <em>sans fausse note</em></h2>
+        <p>Les règles qui protègent votre événement sont intégrées à la plateforme, pas laissées au hasard.</p>
+      </div>
+      <ol class="why-list stagger">
+        <li><span class="why-ico" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><h3>Tout au même endroit</h3><p>Lieux, programme, prestataires, billetterie et invités réunis dans un seul outil.</p></li>
+        <li><span class="why-ico" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM18 18h3v3h-3zM14 20h2M20 14v2"/></svg></span><h3>Billets QR immédiats</h3><p>Réservation en quelques minutes, billet téléchargeable et imprimable, contrôlé à l'entrée.</p></li>
+        <li><span class="why-ico" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h7"/><path d="m15 17 2 2 4-4"/></svg></span><h3>Liste d'attente automatique</h3><p>Événement complet ? Dès qu'une place se libère, la personne suivante est confirmée.</p></li>
+        <li><span class="why-ico" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><h3>Zéro double réservation</h3><p>Une ressource n'est jamais affectée au-delà de sa quantité sur un même créneau.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 8 · CHIFFRES (données réelles) & TÉMOIGNAGES (avis réels) -->
+  <section class="section container proof" aria-labelledby="proof-titre">
+    <h2 class="sr-only" id="proof-titre">Évenza en chiffres et avis</h2>
+    <dl class="kpis reveal">
+      <div><dt>Événements publiés</dt><dd data-count="{{ chiffres.evenements }}">{{ chiffres.evenements }}</dd></div>
+      <div><dt>Places réservées</dt><dd data-count="{{ chiffres.places }}">{{ chiffres.places }}</dd></div>
+      <div><dt>Prestataires partenaires</dt><dd data-count="{{ chiffres.prestataires }}">{{ chiffres.prestataires }}</dd></div>
+      <div><dt>Lieux d'exception</dt><dd data-count="{{ chiffres.lieux }}">{{ chiffres.lieux }}</dd></div>
+    </dl>
+    <div class="quotes">
+      <div class="quotes-head reveal">
+        <span class="eyebrow line">Ils en parlent</span>
+        <h2 data-split>La parole <em>à nos invités</em></h2>
+      </div>
+      {% if avis %}
+      <div class="quotes-grid stagger">
+        {% for a in avis %}
+        <figure class="quote">
+          <span class="quote-stars" aria-label="Note : {{ a.note }} sur 5">{% for i in "12345" %}<i class="{% if forloop.counter <= a.note %}on{% endif %}" aria-hidden="true">★</i>{% endfor %}</span>
+          <blockquote>« {{ a.commentaire|truncatewords:40 }} »</blockquote>
+          <figcaption><span class="avatar">{{ a.inscription.participant.username|first|upper }}</span><span><b>{{ a.inscription.participant.first_name|default:a.inscription.participant.username }}</b><small>{{ a.inscription.evenement.titre }}</small></span></figcaption>
+        </figure>
+        {% endfor %}
+      </div>
+      {% else %}
+      {# Emplacement réservé : aucun avis n'existe encore dans la base. Les vrais avis (modèle Avis, note ≥ 4) remplaceront ce bloc automatiquement. #}
+      <div class="quote quote-empty reveal" data-placeholder="temoignages">
+        <span class="chip soft">Espace témoignages</span>
+        <blockquote>Les premiers avis de nos participants apparaîtront ici, après leurs événements.</blockquote>
+        <p class="muted small">Vous avez assisté à un événement Évenza ? Laissez votre avis depuis « Mes billets ».</p>
+        <a class="link-line" href="{% url 'participants:mes_inscriptions' %}">Mes billets</a>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- 9 · APPEL À L'ACTION -->
+  <section class="cta-band on-dark" aria-labelledby="cta-titre">
+    <div class="cta-media" data-parallax="7"><img src="{% static 'img/hero/terrasse.jpg' %}" alt="" loading="lazy" width="1620" height="1080"></div>
+    <div class="cta-shade" aria-hidden="true"></div>
+    <div class="container cta-in reveal">
+      <span class="eyebrow line">Votre projet</span>
+      <h2 id="cta-titre" data-split>Racontez-nous <em>votre événement</em></h2>
+      <p>Un mariage, un séminaire, un gala ? Écrivez-nous : nous revenons vers vous sous 48 h avec une première proposition.</p>
+      <div class="actions">
+        <a class="btn primary" href="{% url 'core:contact' %}">Demander un rendez-vous <svg class="arrow" width="18" height="10" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M0 7h28M22 1l6 6-6 6"/></svg></a>
+        {% if not user.is_authenticated %}<a class="btn light" href="{% url 'utilisateurs:register' %}">Créer un compte</a>
+        {% elif user.est_organisateur %}<a class="btn light" href="{% url 'evenements:creer' %}">Créer un événement</a>{% endif %}
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 · FAQ -->
+  {% if faq_extrait %}
+  <section class="section container faq-home" aria-labelledby="faq-titre">
+    <div class="faq-side reveal">
+      <span class="eyebrow line">Questions fréquentes</span>
+      <h2 id="faq-titre" data-split>Bon à <em>savoir</em></h2>
+      <p class="muted">Billets, réservations, organisation : l'essentiel en quelques réponses.</p>
+      <div class="actions"><a class="btn ghost sm" href="{% url 'core:faq' %}">Toute la FAQ</a><a class="link-line" href="{% url 'core:contact' %}">Une autre question ?</a></div>
+    </div>
+    <div class="acc reveal" data-accordion="single">
+      {% for q, r in faq_extrait %}
+      <div class="acc-item">
+        <h3 class="acc-q"><button class="acc-btn" type="button" aria-expanded="false" aria-controls="faq-r{{ forloop.counter }}" id="faq-q{{ forloop.counter }}">{{ q }}<span class="acc-ico" aria-hidden="true"></span></button></h3>
+        <div class="acc-panel" id="faq-r{{ forloop.counter }}" role="region" aria-labelledby="faq-q{{ forloop.counter }}"><div><p>{{ r }}</p></div></div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</main>
+{% include "core/_intro.html" %}
+{% endblock %}
+{% block footer %}{% include "partials/footer.html" with sans_cta=1 %}{% endblock %}

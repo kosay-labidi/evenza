@@ -1,0 +1,4 @@
+{% extends "form_base.html" %}{% block title %}Séance{% endblock %}
+{% block eyebrow %}Programme · {{ evenement }}{% endblock %}
+{% block heading %}{% if object %}Modifier la séance{% else %}Nouvelle séance{% endif %}{% endblock %}
+{% block cancel %}{{ evenement.get_absolute_url }}{% endblock %}

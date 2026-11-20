@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% load static %}{% block title %}Événements{% endblock %}
+{% block body_class %}has-hero{% endblock %}
+{% block banner %}{% static 'img/home/festival.jpg' as photo %}{% include "partials/banner.html" with image=photo sur_titre="L'agenda" titre="Événements à venir" texte="Concerts, mariages, conférences, galas et festivals en Tunisie, réservés en quelques minutes." %}{% endblock %}
+{% block content %}
+<form class="filters" method="get" role="search">
+  <input type="search" name="q" value="{{ q }}" placeholder="Titre, mot-clé…" aria-label="Mot-clé">
+  <select name="categorie" aria-label="Catégorie"><option value="">Toutes les catégories</option>{% for c in categories %}<option value="{{ c.pk }}" {% if request.GET.categorie == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+  <select name="ville" aria-label="Ville"><option value="">Toute la Tunisie</option>{% for v in villes %}<option {% if request.GET.ville == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+  <input type="date" name="date" value="{{ request.GET.date }}" aria-label="À partir du">
+  <button class="btn primary sm">Rechercher</button>
+</form>
+<div class="grid grid-3">{% for e in object_list %}{% include "evenements/_carte.html" %}{% empty %}<p class="muted">Aucun événement ne correspond à cette recherche.</p>{% endfor %}</div>
+{% include "partials/pagination.html" %}
+{% endblock %}

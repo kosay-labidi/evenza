@@ -1,0 +1,9 @@
+{% extends "app_base.html" %}{% block title %}Mes événements{% endblock %}
+{% block banner %}{% include "partials/banner.html" with sur_titre="Espace organisateur" titre="Mes événements" texte="Brouillons, événements publiés ou annulés : gérez-les depuis ici." %}{% endblock %}
+{% block content %}
+<div class="sec-head" style="margin-top:0"><h2>Tous mes événements</h2><a class="btn primary" href="{% url 'evenements:creer' %}">+ Nouvel événement</a></div>
+<div class="table-wrap"><table class="table"><thead><tr><th>Titre</th><th>Début</th><th>Lieu</th><th>Places</th><th>Statut</th><th></th></tr></thead><tbody>
+{% for e in object_list %}<tr><td>{{ e.titre }}</td><td>{{ e.date_debut|date:"d/m/Y H:i" }}</td><td>{{ e.lieu }}</td><td>{{ e.nb_inscrits }}/{{ e.capacite }}</td><td><span class="badge {{ e.statut|lower }}">{{ e.get_statut_display }}</span></td><td><a href="{{ e.get_absolute_url }}">Gérer →</a></td></tr>
+{% empty %}<tr><td colspan="6" class="muted">Aucun événement. Créez le premier !</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

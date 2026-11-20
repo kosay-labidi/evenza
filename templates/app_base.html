@@ -1,0 +1,72 @@
+{% extends "base.html" %}{% load static %}
+{# Espace de gestion (tableau de bord, listes, formulaires) : barre latérale bordeaux + barre supérieure crème. #}
+{% block body_class %}app{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">{% block app_head %}{% endblock %}{% endblock %}
+{% block navbar %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block main %}{% with app=request.resolver_match.app_name url=request.resolver_match.url_name %}
+<div class="app-shell">
+  <aside class="app-side" id="app-side" aria-label="Navigation de l'espace">
+    <a class="logo" href="{% url 'core:home' %}" aria-label="Évenza, retour au site"><img src="{% static 'img/logo.svg' %}?v=ev2" alt="" width="36" height="36"><span>Évenza</span></a>
+    <nav class="side-nav">
+      <p class="side-label">Mon espace</p>
+      <a href="{% url 'core:dashboard' %}" class="{% if url == 'dashboard' %}active{% endif %}" {% if url == 'dashboard' %}aria-current="page"{% endif %}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Tableau de bord</a>
+      <a href="{% url 'participants:mes_inscriptions' %}" class="{% if url == 'mes_inscriptions' or url == 'avis' %}active{% endif %}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M15 6v12" stroke-dasharray="1.5 2"/></svg>Mes billets</a>
+      <a href="{% url 'utilisateurs:profil' %}" class="{% if url == 'profil' %}active{% endif %}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Mon profil</a>
+      {% if user.est_organisateur %}
+      <p class="side-label">Organisation</p>
+      <a href="{% url 'evenements:mes_evenements' %}" class="{% if url == 'mes_evenements' or app == 'evenements' and url == 'modifier' or app == 'evenements' and url == 'supprimer' or app == 'programmes' and 'seance' in url or app == 'participants' and url == 'liste' or url == 'checkin' or url == 'type_creer' or app == 'prestataires' and url == 'reserver' or url == 'affecter' %}active{% endif %}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>Mes événements</a>
+      <a href="{% url 'evenements:creer' %}" class="{% if url == 'creer' and app == 'evenements' %}active{% endif %}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Nouvel événement</a>
+      <a href="{% url 'evenements:lieux' %}" class="{% if url == 'lieux' or url == 'lieu_creer' %}active{% endif %}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>Lieux</a>
+      <a href="{% url 'prestataires:liste' %}" class="{% if app == 'prestataires' and url != 'reserver' %}active{% endif %}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.4 7.2 17.9l.9-5.4-3.9-3.8 5.4-.8z"/></svg>Prestataires</a>
+      <a href="{% url 'ressources:liste' %}" class="{% if app == 'ressources' and url != 'affecter' and 'affectation' not in url %}active{% endif %}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>Ressources</a>
+      <a href="{% url 'ressources:affectations' %}" class="{% if app == 'ressources' and 'affectation' in url %}active{% endif %}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/><path d="m15 17 2 2 4-4"/></svg>Affectations</a>
+      <a href="{% url 'programmes:intervenants' %}" class="{% if url == 'intervenants' or url == 'intervenant_creer' %}active{% endif %}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v4"/></svg>Intervenants</a>
+      {% endif %}
+      {% if user.est_admin %}
+      <p class="side-label">Administration</p>
+      <a href="{% url 'utilisateurs:utilisateur_liste' %}" class="{% if app == 'utilisateurs' and 'utilisateur_' in url %}active{% endif %}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg>Utilisateurs</a>
+      <a href="{% url 'admin:index' %}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3.6 15H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 4.6V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1.3z"/></svg>Administration Django</a>
+      {% endif %}
+    </nav>
+    <div class="side-foot">
+      <a href="{% url 'evenements:liste' %}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Retour au site</a>
+      <form method="post" action="{% url 'utilisateurs:logout' %}">{% csrf_token %}<button type="submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Déconnexion</button></form>
+    </div>
+  </aside>
+  <div class="app-overlay" data-close="app-side" aria-hidden="true"></div>
+
+  <div class="app-main">
+    <header class="app-top">
+      <button class="burger app-burger" type="button" aria-label="Ouvrir la navigation" aria-expanded="false" aria-controls="app-side" data-toggle="app-side"><span></span><span></span><span></span></button>
+      <div class="app-crumb"><small>Espace {{ user.get_role_display|lower }}</small><span>{% now "l j F Y" %}</span></div>
+      <form class="app-search" method="get" action="{% url 'evenements:liste' %}" role="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+        <input type="search" name="q" placeholder="Rechercher un événement publié…" aria-label="Rechercher un événement publié">
+      </form>
+      <div class="app-top-actions">
+        {% if user.est_organisateur %}<a class="btn primary sm" href="{% url 'evenements:creer' %}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="hide-xs">Créer</span></a>{% endif %}
+        <a class="app-user" href="{% url 'utilisateurs:profil' %}" aria-label="Mon profil"><span class="avatar">{{ user.username|first|upper }}</span><span class="app-user-txt"><b>{{ user.get_full_name|default:user.username }}</b><small>{{ user.get_role_display }}</small></span></a>
+      </div>
+    </header>
+
+    {% block banner %}{% endblock %}
+    <main class="app-content" id="contenu">
+      {% include "partials/messages.html" %}
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="app-foot"><span>© {% now "Y" %} Évenza</span><a href="{% url 'core:faq' %}">Aide</a></footer>
+  </div>
+</div>
+{% endwith %}{% endblock %}
