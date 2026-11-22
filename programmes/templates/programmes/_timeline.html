@@ -1,0 +1,58 @@
+<section class="programme-shell" data-programme
+         data-event-start="{{ object.date_debut|date:'c' }}"
+         data-event-end="{{ object.date_fin|date:'c' }}"
+         data-can-edit="{{ peut_modifier|yesno:'true,false' }}"
+         data-create-url="{% url 'programmes:seances_api_creer' object.pk %}"
+         data-update-url-template="{% url 'programmes:seance_api_modifier' 0 %}"
+         data-delete-url-template="{% url 'programmes:seance_api_supprimer' 0 %}"
+         data-pdf-url="{% url 'programmes:programme_pdf' object.pk %}">
+  <div class="programme-heading">
+    <div><h2>Programmes</h2></div>
+    <div class="programme-actions">
+      <div class="programme-filters" role="group" aria-label="Filtrer le programme">
+        <label>Du <input type="date" aria-label="Date de début" value="{{ object.date_debut|date:'Y-m-d' }}" data-programme-from-date></label>
+        <input type="time" aria-label="Heure de début" value="{{ object.date_debut|date:'H:i' }}" data-programme-from-time>
+        <label>Au <input type="date" aria-label="Date de fin" value="{{ object.date_fin|date:'Y-m-d' }}" data-programme-to-date></label>
+        <input type="time" aria-label="Heure de fin" value="{{ object.date_fin|date:'H:i' }}" data-programme-to-time>
+        <button type="button" class="btn ghost sm" data-programme-reset>Réinitialiser</button>
+      </div>
+      {% if peut_modifier %}<button type="button" class="btn primary sm" data-programme-add>+ Séance</button>{% endif %}
+    </div>
+  </div>
+  <p class="programme-filter-error" data-programme-filter-error role="alert" hidden></p>
+  <div class="programme-timeline" data-programme-scroll>
+    <div class="programme-track" data-programme-track>
+      <div class="programme-axis-line"></div>
+      <span class="programme-axis-label programme-axis-start">{{ object.date_debut|date:"d/m/Y H:i" }}</span>
+      <span class="programme-axis-label programme-axis-end">{{ object.date_fin|date:"d/m/Y H:i" }}</span>
+      <div class="programme-markers" data-programme-markers>
+        {% for s in seances %}
+          <button type="button" class="programme-marker" data-seance-id="{{ s.pk }}" data-seance-title="{{ s.titre|escape }}" data-seance-description="{{ s.description|escape }}" data-seance-date="{{ s.date|date:'c' }}" aria-label="Voir les détails de {{ s.titre }}">
+            <span class="programme-marker-title">{{ s.titre }}</span><span class="programme-marker-tick" aria-hidden="true"></span><span class="programme-marker-date">{{ s.date|date:"d/m/Y H:i" }}</span><span class="programme-marker-hint">Voir détails</span>
+          </button>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <p class="programme-empty" data-programme-empty {% if seances %}hidden{% endif %}>Aucune séance ne correspond à cet intervalle.</p>
+  <p class="programme-status" data-programme-status aria-live="polite"></p>
+  <div class="programme-export"><a href="{% url 'programmes:programme_pdf' object.pk %}" data-programme-pdf><span aria-hidden="true">⇩</span> Exporter le programme en PDF</a></div>
+</section>
+
+<dialog class="programme-modal" data-programme-modal aria-labelledby="programme-modal-title">
+  <div class="programme-modal-card">
+    <button type="button" class="programme-modal-close" data-programme-close aria-label="Fermer">×</button>
+    <span class="eyebrow" data-programme-modal-eyebrow>Consultation</span>
+    <h2 id="programme-modal-title" data-programme-modal-title>Détails de la séance</h2>
+    <div class="programme-modal-view" data-programme-modal-view><p class="programme-modal-date" data-programme-modal-date></p><p data-programme-modal-description></p></div>
+    {% if peut_modifier %}
+      <form class="programme-modal-form" data-seance-form hidden>
+        {% csrf_token %}<label for="programme-titre">Titre</label><input id="programme-titre" name="titre" type="text" maxlength="30" required>
+        <label for="programme-date">Date et heure</label><input id="programme-date" name="date" type="datetime-local" required>
+        <label for="programme-description">Description</label><textarea id="programme-description" name="description" rows="4"></textarea>
+        <p class="programme-form-errors" data-programme-form-errors role="alert"></p>
+        <div class="programme-modal-actions"><button type="button" class="btn ghost" data-programme-clear>Vider</button><button type="button" class="btn ghost" data-programme-cancel>Retour</button><button type="button" class="btn ghost programme-delete" data-programme-delete hidden>Supprimer</button><button type="submit" class="btn primary">Valider</button></div>
+      </form>
+    {% endif %}
+  </div>
+</dialog>

@@ -9,7 +9,7 @@
 ![Licence](https://img.shields.io/badge/projet-acad%C3%A9mique-512D3B)
 
 Projet réalisé dans le cadre du module **Génie logiciel** (ESPRIT, 3IA).
-Évenza couvre tout le cycle de vie d'un événement : création et publication, programme et intervenants, billetterie avec QR code, liste d'attente, réservation de prestataires, affectation de ressources et contrôle d'entrée.
+Évenza couvre tout le cycle de vie d'un événement : création et publication, programme composé de séances datées, billetterie avec QR code, liste d'attente, réservation de prestataires, affectation de ressources et contrôle d'entrée.
 
 ---
 
@@ -49,7 +49,7 @@ Puis ouvrez http://127.0.0.1:8000/ et connectez-vous avec `organisateur` / `Demo
 |---|---|
 | **Utilisateurs** | Inscription en 3 étapes, connexion par nom d'utilisateur **ou** e-mail, mot de passe oublié, profil, rôles (Administrateur, Organisateur, Participant, Prestataire, Client) |
 | **Événements** | Catalogue filtrable (catégorie, ville, date), création / modification / suppression, publication, gestion des lieux et catégories |
-| **Programmes** | Séances et intervenants rattachés à un événement |
+| **Programmes** | Séances décrites et datées, rattachées à un événement |
 | **Participants** | Réservation en 2 étapes (choix des billets puis récapitulatif), types de billets avec prix et quotas, billet QR imprimable, liste d'attente, check-in, avis |
 | **Prestataires** | Catalogue de prestataires et de services, réservation pour un événement |
 | **Ressources** | Matériel et salles, affectation sur un créneau avec **détection de conflit** |
@@ -139,7 +139,7 @@ evenza/
 ├── core/              # Accueil, tableau de bord, pages publiques, mixins de rôles, commande seed_demo
 ├── utilisateurs/      # Modèle Utilisateur personnalisé, authentification, profils
 ├── evenements/        # Événements, lieux, catégories
-├── programmes/        # Séances, intervenants
+├── programmes/        # Séances d'événements
 ├── participants/      # Types de billets, inscriptions (billets QR), avis
 ├── prestataires/      # Prestataires, services, réservations
 ├── ressources/        # Ressources, affectations, détection de conflits
@@ -154,7 +154,7 @@ evenza/
 |---|---|
 | `utilisateurs` | `Utilisateur` (hérite d'`AbstractUser`, ajoute un rôle) |
 | `evenements` | `Evenement`, `Lieu`, `Categorie` |
-| `programmes` | `Seance`, `Intervenant` |
+| `programmes` | `Seance` |
 | `participants` | `TypeBillet`, `Inscription`, `Avis` |
 | `prestataires` | `Prestataire`, `Service`, `Reservation` |
 | `ressources` | `Ressource`, `Affectation` |

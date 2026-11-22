@@ -30,8 +30,6 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>Ressources</a>
       <a href="{% url 'ressources:affectations' %}" class="{% if app == 'ressources' and 'affectation' in url %}active{% endif %}">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/><path d="m15 17 2 2 4-4"/></svg>Affectations</a>
-      <a href="{% url 'programmes:intervenants' %}" class="{% if url == 'intervenants' or url == 'intervenant_creer' %}active{% endif %}">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v4"/></svg>Intervenants</a>
       {% endif %}
       {% if user.est_admin %}
       <p class="side-label">Administration</p>

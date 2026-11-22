@@ -1,5 +1,7 @@
-"""python manage.py seed_demo : remplit la base avec des données de démonstration."""
+"""Crée des données de démonstration idempotentes pour Evenza."""
+
 from datetime import timedelta
+from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -8,7 +10,7 @@ from django.utils import timezone
 from evenements.models import Categorie, Evenement, Lieu
 from participants.models import Inscription, TypeBillet
 from prestataires.models import Prestataire, Reservation, Service
-from programmes.models import Intervenant, Seance
+from programmes.models import Seance
 from ressources.models import Affectation, Ressource
 from utilisateurs.models import Utilisateur
 
@@ -16,121 +18,275 @@ MDP = "Demo12345!"
 
 
 class Command(BaseCommand):
-    help = "Crée des utilisateurs, événements, programmes, prestataires, inscriptions et ressources de démonstration."
-
-    def add_arguments(self, parser):
-        parser.add_argument("--reset", action="store_true", help="Vide les données Évenza avant de recréer.")
+    help = "Crée des utilisateurs, référentiels, événements et données métier de démonstration."
 
     @transaction.atomic
     def handle(self, *args, **opts):
-        if opts["reset"]:
-            for m in (Affectation, Reservation, Inscription, TypeBillet, Seance, Evenement, Ressource, Prestataire, Service,
-                      Intervenant, Lieu, Categorie):
-                m.objects.all().delete()
-            Utilisateur.objects.exclude(is_superuser=True).delete()
-
-        # --- utilisateurs ---
-        admin, created = Utilisateur.objects.get_or_create(username="admin", defaults={
-            "email": "admin@evenza.tn", "role": "ADMIN", "is_staff": True, "is_superuser": True, "first_name": "Admin"})
+        admin, created = Utilisateur.objects.get_or_create(
+            username="admin",
+            defaults={
+                "email": "admin@evenza.tn",
+                "role": "ADMIN",
+                "is_staff": True,
+                "is_superuser": True,
+                "first_name": "Admin",
+            },
+        )
         if created:
-            admin.set_password("Admin12345!"); admin.save()
-        def user(username, role, prenom, nom):
-            u, c = Utilisateur.objects.get_or_create(username=username, defaults={
-                "role": role, "first_name": prenom, "last_name": nom, "email": f"{username}@evenza.tn"})
-            if c:
-                u.set_password(MDP); u.save()
-            return u
-        org = user("organisateur", "ORGANISATEUR", "Koussay", "Organisateur")
-        parts = [user("participant", "PARTICIPANT", "Sara", "Ben Ali")] + [
-            user(f"participant{i}", "PARTICIPANT", p, n) for i, (p, n) in enumerate(
-                [("Yassine", "Trabelsi"), ("Amira", "Gharbi"), ("Omar", "Jaziri"), ("Lina", "Mansour")], start=2)]
+            admin.set_password("Admin12345!")
+            admin.save()
+
+        def user(username, role, first_name, last_name):
+            account, account_created = Utilisateur.objects.get_or_create(
+                username=username,
+                defaults={
+                    "role": role,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "email": f"{username}@evenza.tn",
+                },
+            )
+            if account_created:
+                account.set_password(MDP)
+                account.save()
+            return account
+
+        organizer = user("organisateur", "ORGANISATEUR", "Koussay", "Organisateur")
+        participants = [user("participant", "PARTICIPANT", "Sara", "Ben Ali")]
+        participants += [
+            user(f"participant{i}", "PARTICIPANT", first_name, last_name)
+            for i, (first_name, last_name) in enumerate(
+                [
+                    ("Yassine", "Trabelsi"),
+                    ("Amira", "Gharbi"),
+                    ("Omar", "Jaziri"),
+                    ("Lina", "Mansour"),
+                ],
+                start=2,
+            )
+        ]
         user("prestataire", "PRESTATAIRE", "Nour", "Traiteur")
 
-        # --- référentiels ---
-        cats = {n: Categorie.objects.get_or_create(nom=n)[0] for n in ["Concert", "Mariage", "Conférence", "Gala", "Festival"]}
-        lieux = {
-            "carthage": Lieu.objects.get_or_create(nom="Théâtre de Carthage", defaults={"adresse": "Carthage", "ville": "Tunis", "capacite": 7500})[0],
-            "sbs": Lieu.objects.get_or_create(nom="Dar Sidi Bou Saïd", defaults={"adresse": "Rue Habib Thameur", "ville": "Sidi Bou Saïd", "capacite": 250})[0],
-            "sousse": Lieu.objects.get_or_create(nom="Palais des congrès", defaults={"adresse": "Bd du 14 janvier", "ville": "Sousse", "capacite": 900})[0],
-            "esprit": Lieu.objects.get_or_create(nom="ESPRIT – Amphi A", defaults={"adresse": "El Ghazala", "ville": "Ariana", "capacite": 300})[0],
+        # Exactly three named demonstration categories. Existing unrelated
+        # categories are left untouched because the seed never deletes data.
+        category_data = {
+            "Concert": {},
+            "Conférence": {},
+            "Mariage": {},
+        }
+        categories = {
+            name: Categorie.objects.update_or_create(nom=name, defaults=defaults)[0]
+            for name, defaults in category_data.items()
+        }
+
+        # Exactly five named demonstration venues with varied capacities.
+        venue_data = {
+            "carthage": {
+                "nom": "Théâtre antique de Carthage",
+                "adresse": "Rue du Théâtre romain",
+                "ville": "Carthage",
+                "capacite": 5000,
+            },
+            "sidi_bou_said": {
+                "nom": "Dar Sidi Bou Saïd",
+                "adresse": "Rue Habib Thameur",
+                "ville": "Sidi Bou Saïd",
+                "capacite": 250,
+            },
+            "sousse": {
+                "nom": "Palais des congrès de Sousse",
+                "adresse": "Boulevard du 14 janvier",
+                "ville": "Sousse",
+                "capacite": 900,
+            },
+            "esprit": {
+                "nom": "ESPRIT – Amphi A",
+                "adresse": "Pôle technologique El Ghazala",
+                "ville": "Ariana",
+                "capacite": 300,
+            },
+            "hammamet": {
+                "nom": "Centre culturel de Hammamet",
+                "adresse": "Avenue de la République",
+                "ville": "Hammamet",
+                "capacite": 650,
+            },
+        }
+        venues = {
+            key: Lieu.objects.update_or_create(
+                nom=data["nom"],
+                ville=data["ville"],
+                defaults={key: value for key, value in data.items() if key not in {"nom", "ville"}},
+            )[0]
+            for key, data in venue_data.items()
         }
 
         now = timezone.now().replace(minute=0, second=0, microsecond=0)
-        def evt(titre, cat, lieu, jours, heure, duree, cap, prix, statut="PUBLIE", desc=""):
-            d = (now + timedelta(days=jours)).replace(hour=heure)
-            e, _ = Evenement.objects.get_or_create(titre=titre, defaults=dict(
-                categorie=cats[cat], lieu=lieux[lieu], organisateur=org, date_debut=d, date_fin=d + timedelta(hours=duree),
-                capacite=cap, prix=prix, statut=statut, description=desc))
-            return e
-        festival = evt("Tunis Summer Festival", "Concert", "carthage", 20, 21, 4, 5000, 45,
-                       desc="Trois artistes, une scène, une nuit d'été à Carthage.")
-        mariage = evt("Mariage Ines & Karim", "Mariage", "sbs", 35, 19, 6, 120, 0,
-                      desc="Cérémonie, dîner et soirée dansante.")
-        conf = evt("Forum IA & Logiciel", "Conférence", "sousse", 12, 9, 8, 600, 20,
-                   desc="Journée de conférences sur l'IA et le génie logiciel.")
-        evt("Gala de fin d'année ESPRIT", "Gala", "esprit", 50, 20, 4, 3, 30,
-            desc="Dîner de gala (3 places pour tester la liste d'attente).")
-        evt("Festival Jazz de Tabarka", "Festival", "carthage", 60, 18, 6, 4000, 35,
-            desc="Trois jours de jazz face à la mer.")
-        evt("Festival de Hammamet (brouillon)", "Festival", "carthage", 70, 18, 6, 3000, 35, statut="BROUILLON")
 
-        # --- types de billets ---
-        for e in Evenement.objects.all():
-            if e.types_billet.exists():
+        def event(title, category, venue, days, hour, duration, capacity, price, description):
+            start = (now + timedelta(days=days)).replace(hour=hour)
+            return Evenement.objects.update_or_create(
+                titre=title,
+                defaults={
+                    "categorie": categories[category],
+                    "lieu": venues[venue],
+                    "organisateur": organizer,
+                    "date_debut": start,
+                    "date_fin": start + timedelta(hours=duration),
+                    "capacite": capacity,
+                    "prix": price,
+                    "statut": Evenement.Statut.PUBLIE,
+                    "description": description,
+                },
+            )[0]
+
+        # Exactly two named demonstration events with different scales and prices.
+        festival = event(
+            "Tunis Summer Festival",
+            "Concert",
+            "carthage",
+            20,
+            21,
+            4,
+            5000,
+            Decimal("45.00"),
+            "Trois artistes, une scène et une nuit d'été face aux ruines de Carthage.",
+        )
+        conference = event(
+            "Forum IA & Logiciel",
+            "Conférence",
+            "sousse",
+            12,
+            9,
+            8,
+            600,
+            Decimal("20.00"),
+            "Une journée de conférences sur l'intelligence artificielle et le génie logiciel.",
+        )
+        demo_events = (festival, conference)
+
+        # Ticket types are scoped to the two demonstration events only.
+        for demo_event in demo_events:
+            if demo_event.types_billet.exists():
                 continue
-            if e.prix:
-                TypeBillet.objects.create(evenement=e, nom="Standard", prix=e.prix, description="Accès à l'événement")
-                TypeBillet.objects.create(evenement=e, nom="VIP", prix=round(e.prix * 25) / 10, quota=max(1, e.capacite // 10),
-                                          description="Placement privilégié et accueil dédié")
-                TypeBillet.objects.create(evenement=e, nom="Étudiant", prix=round(e.prix * 6) / 10,
-                                          description="Sur présentation de la carte étudiante")
-            else:
-                TypeBillet.objects.create(evenement=e, nom="Invité", prix=0, description="Sur invitation")
+            TypeBillet.objects.create(
+                evenement=demo_event,
+                nom="Standard",
+                prix=demo_event.prix,
+                description="Accès à l'événement",
+            )
+            TypeBillet.objects.create(
+                evenement=demo_event,
+                nom="VIP",
+                prix=demo_event.prix * Decimal("2.5"),
+                quota=max(1, demo_event.capacite // 10),
+                description="Accueil privilégié et placement réservé",
+            )
 
-        # --- programme ---
-        i1 = Intervenant.objects.get_or_create(nom="Dr. Salma Haddad", defaults={"specialite": "Intelligence artificielle"})[0]
-        i2 = Intervenant.objects.get_or_create(nom="Mehdi Karoui", defaults={"specialite": "Architecture logicielle"})[0]
-        if not conf.seances.exists():
-            s = conf.date_debut
-            for k, (t, h, iv) in enumerate([("Ouverture", 1, []), ("L'IA générative en entreprise", 2, [i1]),
-                                            ("Architecture MVT et microservices", 2, [i2]), ("Table ronde", 2, [i1, i2])]):
-                se = Seance.objects.create(evenement=conf, titre=t, debut=s, fin=s + timedelta(hours=h), salle="Salle A")
-                se.intervenants.set(iv); s += timedelta(hours=h)
+        # Programme built only with the current Seance model.
+        if not conference.seances.exists():
+            start = conference.date_debut
+            for title, duration, description in [
+                ("Ouverture", 1, "Accueil des participants et présentation de la journée."),
+                ("L'IA générative en entreprise", 2, "Conférence sur les usages de l'IA générative."),
+                ("Architecture MVT et microservices", 2, "Séance consacrée aux architectures applicatives."),
+                ("Table ronde", 2, "Échanges avec les participants."),
+            ]:
+                Seance.objects.create(
+                    evenement=conference,
+                    titre=title,
+                    description=description,
+                    date=start,
+                )
+                start += timedelta(hours=duration)
         if not festival.seances.exists():
-            s = festival.date_debut
-            for t in ["Ouverture des portes", "Première partie", "Le show"]:
-                Seance.objects.create(evenement=festival, titre=t, debut=s, fin=s + timedelta(hours=1), salle="Scène")
-                s += timedelta(hours=1)
+            start = festival.date_debut
+            for title in ("Ouverture des portes", "Première partie", "Le show"):
+                Seance.objects.create(
+                    evenement=festival,
+                    titre=title,
+                    description="Programme du festival.",
+                    date=start,
+                )
+                start += timedelta(hours=1)
 
-        # --- prestataires ---
-        svc = {t: Service.objects.get_or_create(nom=n, type=t)[0] for t, n in
-               [("TRAITEUR", "Dîner complet"), ("SON", "Sonorisation"), ("LUMIERE", "Éclairage scène"), ("PHOTO", "Reportage photo")]}
-        p1 = Prestataire.objects.get_or_create(nom="Délices de Carthage", defaults={"telephone": "71 000 001", "email": "contact@delices.tn"})[0]
-        p1.services.add(svc["TRAITEUR"])
-        p2 = Prestataire.objects.get_or_create(nom="Sound & Light Tunis", defaults={"telephone": "71 000 002"})[0]
-        p2.services.add(svc["SON"], svc["LUMIERE"])
-        p3 = Prestataire.objects.get_or_create(nom="Studio Lumière", defaults={"telephone": "71 000 003"})[0]
-        p3.services.add(svc["PHOTO"])
-        Reservation.objects.get_or_create(evenement=festival, prestataire=p2, service=svc["SON"], defaults={"montant": 8000, "statut": "CONFIRMEE"})
-        Reservation.objects.get_or_create(evenement=mariage, prestataire=p1, service=svc["TRAITEUR"], defaults={"montant": 12000})
-        Reservation.objects.get_or_create(evenement=mariage, prestataire=p3, service=svc["PHOTO"], defaults={"montant": 2500})
+        services = {
+            service_type: Service.objects.get_or_create(nom=name, type=service_type)[0]
+            for service_type, name in [
+                ("TRAITEUR", "Dîner complet"),
+                ("SON", "Sonorisation"),
+                ("LUMIERE", "Éclairage de scène"),
+                ("PHOTO", "Reportage photo"),
+            ]
+        }
+        caterer = Prestataire.objects.get_or_create(
+            nom="Délices de Carthage",
+            defaults={"telephone": "71 000 001", "email": "contact@delices.tn"},
+        )[0]
+        caterer.services.add(services["TRAITEUR"])
+        sound_provider = Prestataire.objects.get_or_create(
+            nom="Sound & Light Tunis",
+            defaults={"telephone": "71 000 002"},
+        )[0]
+        sound_provider.services.add(services["SON"], services["LUMIERE"])
+        photographer = Prestataire.objects.get_or_create(
+            nom="Studio Lumière",
+            defaults={"telephone": "71 000 003"},
+        )[0]
+        photographer.services.add(services["PHOTO"])
+        Reservation.objects.get_or_create(
+            evenement=festival,
+            prestataire=sound_provider,
+            service=services["SON"],
+            defaults={"montant": 8000, "statut": "CONFIRMEE"},
+        )
+        Reservation.objects.get_or_create(
+            evenement=conference,
+            prestataire=caterer,
+            service=services["TRAITEUR"],
+            defaults={"montant": 12000},
+        )
+        Reservation.objects.get_or_create(
+            evenement=conference,
+            prestataire=photographer,
+            service=services["PHOTO"],
+            defaults={"montant": 2500},
+        )
 
-        # --- ressources ---
-        r1 = Ressource.objects.get_or_create(nom="Écran LED 6×3 m", defaults={"type": "MATERIEL", "quantite": 2})[0]
-        r2 = Ressource.objects.get_or_create(nom="Projecteur lyre", defaults={"type": "MATERIEL", "quantite": 24})[0]
-        Ressource.objects.get_or_create(nom="Minibus 20 places", defaults={"type": "VEHICULE", "quantite": 3})
-        Affectation.objects.get_or_create(ressource=r1, evenement=festival, defaults={"debut": festival.date_debut, "fin": festival.date_fin, "quantite": 1})
-        Affectation.objects.get_or_create(ressource=r2, evenement=festival, defaults={"debut": festival.date_debut, "fin": festival.date_fin, "quantite": 16})
+        screen = Ressource.objects.get_or_create(
+            nom="Écran LED 6×3 m",
+            defaults={"type": "MATERIEL", "quantite": 2},
+        )[0]
+        projector = Ressource.objects.get_or_create(
+            nom="Projecteur lyre",
+            defaults={"type": "MATERIEL", "quantite": 24},
+        )[0]
+        Ressource.objects.get_or_create(
+            nom="Minibus 20 places",
+            defaults={"type": "VEHICULE", "quantite": 3},
+        )
+        Affectation.objects.get_or_create(
+            ressource=screen,
+            evenement=festival,
+            defaults={"debut": festival.date_debut, "fin": festival.date_fin, "quantite": 1},
+        )
+        Affectation.objects.get_or_create(
+            ressource=projector,
+            evenement=festival,
+            defaults={"debut": festival.date_debut, "fin": festival.date_fin, "quantite": 16},
+        )
 
-        # --- inscriptions ---
-        for p in parts[:4]:
-            if not festival.inscriptions.filter(participant=p).exists():
-                Inscription.inscrire(festival, p, festival.types_billet.first(), 2)
-        for p in parts[:2]:
-            if not conf.inscriptions.filter(participant=p).exists():
-                Inscription.inscrire(conf, p)
+        for participant in participants[:4]:
+            if not festival.inscriptions.filter(participant=participant).exists():
+                Inscription.inscrire(festival, participant, festival.types_billet.first(), 2)
+        for participant in participants[:2]:
+            if not conference.inscriptions.filter(participant=participant).exists():
+                Inscription.inscrire(conference, participant, conference.types_billet.first())
 
-        self.stdout.write(self.style.SUCCESS("Données de démonstration créées."))
+        self.stdout.write(self.style.SUCCESS("Données de démonstration créées ou mises à jour."))
+        self.stdout.write(
+            f"  {len(categories)} catégories, {len(venues)} lieux, {len(demo_events)} événements"
+        )
         self.stdout.write("  admin        / Admin12345!   (superutilisateur, /admin/)")
         self.stdout.write(f"  organisateur / {MDP}")
         self.stdout.write(f"  participant  / {MDP}")

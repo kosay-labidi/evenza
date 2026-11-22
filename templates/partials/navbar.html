@@ -39,7 +39,7 @@
             <a href="{% url 'core:dashboard' %}">Tableau de bord</a>
             <a href="{% url 'participants:mes_inscriptions' %}">Mes billets</a>
             <a href="{% url 'utilisateurs:profil' %}">Mon profil</a>
-            {% if user.est_organisateur %}<hr><a href="{% url 'evenements:mes_evenements' %}">Mes événements</a><a href="{% url 'evenements:lieux' %}">Lieux</a><a href="{% url 'prestataires:liste' %}">Prestataires</a><a href="{% url 'ressources:liste' %}">Ressources</a><a href="{% url 'programmes:intervenants' %}">Intervenants</a>{% endif %}
+            {% if user.est_organisateur %}<hr><a href="{% url 'evenements:mes_evenements' %}">Mes événements</a><a href="{% url 'evenements:lieux' %}">Lieux</a><a href="{% url 'prestataires:liste' %}">Prestataires</a><a href="{% url 'ressources:liste' %}">Ressources</a>{% endif %}
             {% if user.est_admin %}<a href="{% url 'utilisateurs:utilisateur_liste' %}">Utilisateurs</a><a href="{% url 'admin:index' %}">Administration</a>{% endif %}
             <hr>
             <form method="post" action="{% url 'utilisateurs:logout' %}">{% csrf_token %}<button type="submit">Déconnexion</button></form>
