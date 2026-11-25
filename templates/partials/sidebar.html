@@ -1,0 +1,29 @@
+{% load static %}{# Barre latérale de l'espace professionnel. Contenu calculé par core.navigation (un fichier navigation.py par gestion). #}
+<aside class="app-side" id="app-side" aria-label="Navigation de l'espace">
+  <a class="logo" href="{% url 'core:home' %}" aria-label="Évenza, retour au site"><img src="{% static 'img/logo.svg' %}?v=ev2" alt="" width="36" height="36"><span>Évenza</span></a>
+  <nav class="side-nav" aria-label="Navigation principale">
+    <p class="side-label">Navigation principale</p>
+    {% for m in nav_espace.principale %}
+      <a href="{% url m.url_name %}" class="side-link{% if m.actif %} active{% endif %}"{% if m.actif and not m.sous_liens %} aria-current="page"{% endif %} data-module="{{ m.cle }}">
+        {% include "partials/icon.html" with nom=m.icone %}<span>{{ m.label }}</span></a>
+      {% if m.sous_liens %}
+      <ul class="side-sub" role="list">
+        {% for l in m.sous_liens %}<li><a href="{% url l.url_name %}" class="{% if l.actif %}active{% endif %}"{% if l.actif %} aria-current="page"{% endif %}>{{ l.label }}</a></li>{% endfor %}
+      </ul>
+      {% endif %}
+    {% endfor %}
+  </nav>
+  <nav class="side-nav side-perso" aria-label="Espace personnel">
+    <p class="side-label">Espace personnel</p>
+    {% for m in nav_espace.personnelle %}
+      <a href="{% url m.url_name %}" class="side-link{% if m.actif %} active{% endif %}"{% if m.actif %} aria-current="page"{% endif %} data-module="{{ m.cle }}">
+        {% include "partials/icon.html" with nom=m.icone %}<span>{{ m.label }}</span></a>
+    {% endfor %}
+    {% if user.est_admin %}<a href="{% url 'admin:index' %}" class="side-link">{% include "partials/icon.html" with nom="admin" %}<span>Administration Django</span></a>{% endif %}
+  </nav>
+  <div class="side-foot">
+    <a href="{% url 'core:home' %}">{% include "partials/icon.html" with nom="site" taille=18 %}Retour au site</a>
+    <form method="post" action="{% url 'utilisateurs:logout' %}">{% csrf_token %}<button type="submit">{% include "partials/icon.html" with nom="deconnexion" taille=18 %}Déconnexion</button></form>
+  </div>
+</aside>
+<div class="app-overlay" data-close="app-side" aria-hidden="true"></div>

@@ -33,6 +33,20 @@ class AdminRequiredMixin(RoleRequiredMixin):
     roles = ()
 
 
+class ModuleRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Accès à la page d'entrée d'un module : applique la règle déclarée dans ``<app>/navigation.py``.
+
+    Exemple : ``class ParticipantsAccueilView(ModuleRequiredMixin, ListView): module = "participants"``.
+    Le menu et ce contrôle serveur utilisent la même fonction ``acces`` : un lien masqué
+    est aussi une page refusée (403).
+    """
+    module = None
+
+    def test_func(self):
+        from .navigation import get_module
+        return get_module(self.module).acces(self.request.user)
+
+
 class SuppressionMixin:
     """Pour les DeleteView : message de succès, et message clair au lieu d'une erreur 500
     si l'objet est encore utilisé ailleurs (ForeignKey en PROTECT → ProtectedError)."""

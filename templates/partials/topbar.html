@@ -1,0 +1,13 @@
+{# Barre supérieure de l'espace professionnel. #}
+<header class="app-top">
+  <button class="burger app-burger" type="button" aria-label="Ouvrir la navigation" aria-expanded="false" aria-controls="app-side" data-toggle="app-side"><span></span><span></span><span></span></button>
+  <div class="app-crumb"><small>Espace {{ user.get_role_display|lower }}{% if nav_espace.actif %} · {{ nav_espace.actif.label }}{% endif %}</small><span>{% now "l j F Y" %}</span></div>
+  <form class="app-search" method="get" action="{% url 'evenements:liste' %}" role="search">
+    {% include "partials/icon.html" with nom="recherche" taille=16 %}
+    <input type="search" name="q" placeholder="Rechercher un événement publié…" aria-label="Rechercher un événement publié">
+  </form>
+  <div class="app-top-actions">
+    {% if user.est_organisateur %}<a class="btn primary sm" href="{% url 'evenements:creer' %}">{% include "partials/icon.html" with nom="plus" taille=14 %}<span class="hide-xs">Créer</span></a>{% endif %}
+    <a class="app-user" href="{% url 'utilisateurs:profil' %}" aria-label="Mon profil"><span class="avatar">{{ user.username|first|upper }}</span><span class="app-user-txt"><b>{{ user.get_full_name|default:user.username }}</b><small>{{ user.get_role_display }}</small></span></a>
+  </div>
+</header>

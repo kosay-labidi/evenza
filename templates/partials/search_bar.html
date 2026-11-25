@@ -1,0 +1,7 @@
+{% comment %} Barre de recherche d'un module. Variables : q (valeur courante), placeholder (optionnel).
+   Pour ajouter des filtres, surchargez le bloc « filters » de list_base.html. {% endcomment %}
+<form class="filters app-filters" method="get" role="search">
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ placeholder|default:'Rechercher…' }}" aria-label="{{ placeholder|default:'Rechercher' }}">
+  <button class="btn primary sm" type="submit">Rechercher</button>
+  {% if q %}<a class="btn ghost sm" href="{{ request.path }}">Effacer</a>{% endif %}
+</form>

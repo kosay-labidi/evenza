@@ -1,5 +1,5 @@
 {% extends "app_base.html" %}{% block title %}Intervenants{% endblock %}
-{% block banner %}{% include "partials/banner.html" with sur_titre="Gestion des programmes" titre="Intervenants" %}{% endblock %}
+{% block banner %}{% include "partials/banner.html" with sur_titre="Programmes" titre="Intervenants" %}{% endblock %}
 {% block content %}
 <div class="sec-head" style="margin-top:0"><h2>Liste</h2><a class="btn primary" href="{% url 'programmes:intervenant_creer' %}">+ Nouvel intervenant</a></div>
 <div class="table-wrap"><table class="table"><thead><tr><th>Nom</th><th>Spécialité</th><th>Email</th></tr></thead><tbody>

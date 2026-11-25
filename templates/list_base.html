@@ -1,0 +1,22 @@
+{% extends "app_base.html" %}
+{% comment %} Gabarit commun des pages « liste » d'un module (page principale d'une gestion).
+   Blocs à surcharger : title, eyebrow, heading, intro, page_actions, kpis, filters, list, after_list.
+   Exemple : programmes/templates/programmes/index.html {% endcomment %}
+{% block banner %}
+<section class="page-banner">
+  <div><span class="eyebrow">{% block eyebrow %}{{ nav_espace.actif.label }}{% endblock %}</span>
+    <h1>{% block heading %}{% endblock %}</h1>
+    {% block intro_wrap %}<p>{% block intro %}{% endblock %}</p>{% endblock %}</div>
+  <div class="actions">{% block page_actions %}{% endblock %}</div>
+</section>
+{% endblock %}
+{% block content %}
+{% block kpis %}{% endblock %}
+{% block filters %}
+{# Emplacement recherche / filtres. Par défaut : recherche plein texte « q » (à brancher dans get_queryset). #}
+{% include "partials/search_bar.html" %}
+{% endblock %}
+{% block list %}{% endblock %}
+{% include "partials/pagination.html" %}
+{% block after_list %}{% endblock %}
+{% endblock %}

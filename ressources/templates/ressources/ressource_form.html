@@ -1,4 +1,4 @@
 {% extends "form_base.html" %}{% block title %}{% if object %}Modifier la ressource{% else %}Nouvelle ressource{% endif %}{% endblock %}
-{% block eyebrow %}Gestion des ressources{% endblock %}
+{% block eyebrow %}Ressources{% endblock %}
 {% block heading %}{% if object %}Modifier « {{ object.nom }} »{% else %}Nouvelle ressource{% endif %}{% endblock %}
 {% block cancel %}{% if object %}{% url 'ressources:detail' object.pk %}{% else %}{% url 'ressources:liste' %}{% endif %}{% endblock %}

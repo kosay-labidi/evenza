@@ -1,6 +1,7 @@
 {% extends "app_base.html" %}{% block title %}Prestataires{% endblock %}
-{% block banner %}{% include "partials/banner.html" with sur_titre="Gestion des prestataires" titre="Prestataires" texte="Traiteurs, son, lumière, photo : les partenaires de vos événements." %}{% endblock %}
+{% block banner %}{% include "partials/banner.html" with sur_titre="Partenaires" titre="Prestataires" texte="Traiteurs, son, lumière, photo : les partenaires de vos événements." %}{% endblock %}
 {% block content %}
+{% include "partials/choix_evenement.html" with titre="Réserver un prestataire pour un événement" url_action="prestataires:reserver" bouton="Réserver" %}
 <div class="sec-head" style="margin-top:0"><h2>Liste</h2><a class="btn primary" href="{% url 'prestataires:creer' %}">+ Nouveau prestataire</a></div>
 <div class="grid">{% for p in object_list %}
   <div class="card reveal"><span class="avatar" style="width:52px;height:52px;font-size:20px;margin-bottom:12px">{{ p.nom|first }}</span><h3>{{ p.nom }}</h3><p class="muted">{{ p.telephone|default:"—" }}{% if p.email %} · {{ p.email }}{% endif %}</p><p>{% for s in p.services.all %}<span class="chip blue">{{ s.get_type_display }}</span> {% endfor %}</p></div>

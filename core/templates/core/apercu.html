@@ -1,0 +1,205 @@
+{% extends "base.html" %}{% load static %}
+{% comment %} PAGE D'APERÇU (étape 1) : sections « Le verre 3D » et « Trinquer au scroll ».
+   Autonome : styles et scripts sont dans ce fichier, aucun fichier existant n'est modifié.
+   À supprimer après intégration dans home.html (étape 2). {% endcomment %}
+{% block title %}Aperçu · Verre 3D et toast{% endblock %}
+{% block extra_head %}
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<style>
+  .apercu{
+    --ap-bordeaux:#5c2a3a; --ap-creme:#f6f1ea; --ap-dore:#c9a46a; --ap-texte:#2a1a20;
+    --ap-serif:"Cormorant Garamond",Georgia,serif; --ap-sans:"Inter",system-ui,sans-serif;
+    background:var(--ap-creme); color:var(--ap-texte); font-family:var(--ap-sans);
+  }
+  .apercu h2{font-family:var(--ap-serif);font-weight:500;line-height:1.02;letter-spacing:-.01em;margin:0}
+  .ap-eyebrow{display:inline-block;margin-bottom:18px;font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--ap-dore)}
+  .ap-badge{position:relative;z-index:2;max-width:1200px;margin:0 auto;padding:120px 24px 0;font-size:13px;color:#7a6a70}
+  .ap-badge b{color:var(--ap-bordeaux)}
+
+  /* ---------- B. Le verre 3D ---------- */
+  .ap-verre{display:grid;grid-template-columns:1.1fr 1fr;align-items:center;gap:clamp(24px,5vw,80px);max-width:1200px;margin:0 auto;padding:clamp(40px,8vw,110px) 24px}
+  .ap-scene{position:relative;aspect-ratio:4/5;max-height:78vh;width:100%}
+  .ap-scene::before{content:"";position:absolute;inset:8% 10%;border-radius:50%;background:radial-gradient(closest-side,rgba(201,164,106,.38),rgba(201,164,106,.12) 55%,transparent 75%);filter:blur(10px);pointer-events:none}
+  .ap-scene model-viewer{position:relative;width:100%;height:100%;background:transparent;--poster-color:transparent;--progress-bar-color:var(--ap-dore)}
+  .ap-scene model-viewer:focus-visible{outline:2px solid var(--ap-dore);outline-offset:6px;border-radius:24px}
+  .ap-indice{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8a7a70;white-space:nowrap}
+  .ap-verre h2{font-size:clamp(48px,6.4vw,96px);color:var(--ap-bordeaux)}
+  .ap-verre h2 em{font-style:italic;color:var(--ap-dore)}
+  .ap-verre p{max-width:440px;margin:24px 0 0;font-size:17px;line-height:1.7;color:#5a4a50}
+  .ap-filet{width:72px;height:1px;margin:30px 0 0;background:var(--ap-dore)}
+
+  /* ---------- C. Trinquer au scroll ---------- */
+  .ap-toast{position:relative;height:320vh}
+  .ap-sticky{position:sticky;top:0;height:100vh;height:100svh;display:grid;grid-template-columns:1fr 1fr;overflow:hidden}
+  .ap-texte{display:flex;flex-direction:column;justify-content:center;padding:0 clamp(28px,6vw,96px);background:var(--ap-bordeaux);color:var(--ap-creme)}
+  .ap-texte h2{font-size:clamp(52px,6vw,100px);color:var(--ap-creme)}
+  .ap-texte h2 em{font-style:italic;color:var(--ap-dore)}
+  .ap-texte p{max-width:380px;margin:22px 0 0;font-size:16px;line-height:1.7;color:rgba(246,241,234,.78)}
+  .ap-progres{width:min(260px,70%);height:2px;margin-top:40px;background:rgba(246,241,234,.18);border-radius:2px;overflow:hidden}
+  .ap-progres i{display:block;height:100%;width:100%;background:var(--ap-dore);transform-origin:left;transform:scaleX(0)}
+  .ap-cadre-zone{display:grid;place-items:center;padding:6vh 4vw;background:var(--ap-creme)}
+  .ap-cadre{position:relative;height:min(84vh,calc((50vw - 8vw) * 16 / 9));aspect-ratio:9/16;border-radius:28px;overflow:hidden;background:#1d1216;box-shadow:0 40px 80px -30px rgba(42,26,32,.55),0 0 0 1px rgba(201,164,106,.35)}
+  .ap-cadre canvas{display:block;width:100%;height:100%}
+
+  /* mobile : vidéo plein écran, texte par-dessus en bas */
+  @media (max-width:820px){
+    .ap-verre{grid-template-columns:1fr;text-align:center;padding-top:20px}
+    .ap-verre p,.ap-filet{margin-left:auto;margin-right:auto}
+    .ap-scene{max-height:62vh}
+    .ap-sticky{display:block}
+    .ap-cadre-zone{position:absolute;inset:0;padding:0}
+    .ap-cadre{width:100%;height:100%;aspect-ratio:auto;border-radius:0;box-shadow:none}
+    .ap-texte{position:absolute;left:0;right:0;bottom:0;z-index:2;justify-content:flex-end;padding:120px 24px calc(88px + env(safe-area-inset-bottom));background:linear-gradient(to top,rgba(42,26,32,.92) 30%,rgba(92,42,58,.55) 70%,transparent)}
+    .ap-texte h2{font-size:clamp(44px,12vw,64px)}
+  }
+
+  /* bouton « Affichage calme » */
+  .ap-calme{position:fixed;right:18px;bottom:18px;z-index:60;display:inline-flex;align-items:center;gap:10px;padding:11px 18px;border-radius:999px;border:1px solid rgba(201,164,106,.6);background:rgba(246,241,234,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:var(--ap-texte);font:600 13px/1 var(--ap-sans);letter-spacing:.04em;cursor:pointer;box-shadow:0 10px 30px -12px rgba(42,26,32,.35)}
+  .ap-calme:focus-visible{outline:2px solid var(--ap-bordeaux);outline-offset:3px}
+  .ap-calme .pastille{width:30px;height:18px;border-radius:9px;background:#d9ccc2;position:relative;transition:background .3s}
+  .ap-calme .pastille::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .3s}
+  .ap-calme[aria-pressed="true"] .pastille{background:var(--ap-bordeaux)}
+  .ap-calme[aria-pressed="true"] .pastille::after{transform:translateX(12px)}
+
+  /* mode calme : plus de défilement long ni d'animation */
+  html.calme .ap-toast{height:auto}
+  html.calme .ap-sticky{position:relative;height:100vh;height:100svh}
+  html.calme .ap-indice{display:none}
+  html.calme .ap-progres{display:none}
+  html.calme *{transition:none!important;animation:none!important}
+</style>
+{% endblock %}
+
+{% block main %}
+<main class="apercu" id="contenu">
+  <p class="ap-badge"><b>Aperçu</b> · page temporaire, le site n'est pas modifié.</p>
+
+  {# ---------- B. LE VERRE 3D ---------- #}
+  <section class="ap-verre" aria-labelledby="ap-verre-titre">
+    <div class="ap-scene">
+      <model-viewer id="ap-flute"
+        src="{% static 'model/flute.glb' %}"
+        alt="Flûte de champagne en 3D, à faire tourner avec la souris ou au doigt"
+        camera-controls disable-zoom disable-pan
+        auto-rotate auto-rotate-delay="0" rotation-per-second="14deg"
+        interaction-prompt="none"
+        environment-image="{% static 'img/apercu/env-chaud.jpg' %}"
+        exposure="1.15" shadow-intensity="0.6" shadow-softness="1"
+        tone-mapping="neutral"
+        loading="eager"></model-viewer>
+      <span class="ap-indice">Faites-la tourner</span>
+    </div>
+    <div>
+      <span class="ap-eyebrow">Le verre</span>
+      <h2 id="ap-verre-titre">Chaque détail <em>compte</em></h2>
+      <p>Du choix des verres à la dernière bulle, nous soignons ce que vos invités remarqueront — et tout ce qu'ils ne remarqueront pas.</p>
+      <div class="ap-filet" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  {# ---------- C. TRINQUER AU SCROLL ---------- #}
+  <section class="ap-toast" id="ap-toast" aria-labelledby="ap-toast-titre">
+    <div class="ap-sticky">
+      <div class="ap-texte">
+        <span class="ap-eyebrow">Le moment</span>
+        <h2 id="ap-toast-titre">Scrollez pour <em>trinquer</em></h2>
+        <p>Deux verres, un instant suspendu. C'est pour ces secondes-là que nous organisons tout le reste.</p>
+        <div class="ap-progres" aria-hidden="true"><i id="ap-progres"></i></div>
+      </div>
+      <div class="ap-cadre-zone">
+        <div class="ap-cadre"><canvas id="ap-canvas" role="img" aria-label="Deux flûtes de champagne qui trinquent"></canvas></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<button class="ap-calme" id="ap-calme" type="button" aria-pressed="false">
+  <span class="pastille" aria-hidden="true"></span>Affichage calme
+</button>
+{% endblock %}
+
+{% block footer %}{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/gsap.min.js' %}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+<script>
+(() => {
+  const NB = 75;                                            // 2,5 s × 30 images/s
+  const src = i => "{% static 'img/toast/' %}toast_" + String(i + 1).padStart(3, "0") + ".jpg";
+  const html = document.documentElement;
+  const canvas = document.getElementById("ap-canvas"), ctx = canvas.getContext("2d");
+  const barre = document.getElementById("ap-progres");
+  const flute = document.getElementById("ap-flute");
+  const bouton = document.getElementById("ap-calme");
+  const images = [], etat = { frame: 0 };
+  let courante = -1, trigger = null;
+
+  // ---------- préchargement : la 1re image d'abord, puis le reste ----------
+  for (let i = 0; i < NB; i++) {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = src(i);
+    if (i === 0) img.onload = () => dessiner(0, true);
+    images.push(img);
+  }
+
+  // ---------- dessin « object-fit: cover » net sur écrans haute densité ----------
+  function dimensionner() {
+    const r = canvas.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+    dessiner(courante < 0 ? 0 : courante, true);
+  }
+  function dessiner(i, force) {
+    i = Math.max(0, Math.min(NB - 1, Math.round(i)));
+    if (i === courante && !force) return;
+    const img = images[i];
+    if (!img || !img.complete || !img.naturalWidth) return;
+    courante = i;
+    const cw = canvas.width, ch = canvas.height, s = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
+    const w = img.naturalWidth * s, h = img.naturalHeight * s;
+    ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
+  }
+
+  // ---------- défilement image par image (technique « Apple ») ----------
+  function activerScroll() {
+    if (!window.gsap || !window.ScrollTrigger) { dessiner(NB - 1, true); return; }
+    gsap.registerPlugin(ScrollTrigger);
+    trigger = gsap.to(etat, {
+      frame: NB - 1, ease: "none",
+      scrollTrigger: { trigger: "#ap-toast", start: "top top", end: "bottom bottom", scrub: 0.4 },
+      onUpdate: () => {
+        dessiner(etat.frame);
+        barre.style.transform = "scaleX(" + (etat.frame / (NB - 1)) + ")";
+      },
+    });
+  }
+  function desactiverScroll() {
+    if (trigger) { trigger.scrollTrigger.kill(); trigger.kill(); trigger = null; }
+    etat.frame = NB - 1;
+    dessiner(NB - 1, true);                                  // image fixe : les verres qui se touchent
+  }
+
+  // ---------- Affichage calme ----------
+  function appliquer(calme) {
+    html.classList.toggle("calme", calme);
+    bouton.setAttribute("aria-pressed", calme);
+    if (calme) { flute.removeAttribute("auto-rotate"); desactiverScroll(); }
+    else { flute.setAttribute("auto-rotate", ""); activerScroll(); }
+    requestAnimationFrame(() => { dimensionner(); if (window.ScrollTrigger) ScrollTrigger.refresh(); });
+  }
+  let pref = null;
+  try { pref = localStorage.getItem("evenza-calme"); } catch (e) {}
+  const initial = pref !== null ? pref === "1" : matchMedia("(prefers-reduced-motion: reduce)").matches;
+  bouton.addEventListener("click", () => {
+    const calme = !html.classList.contains("calme");
+    try { localStorage.setItem("evenza-calme", calme ? "1" : "0"); } catch (e) {}
+    appliquer(calme);
+  });
+
+  addEventListener("resize", dimensionner);
+  dimensionner();
+  appliquer(initial);
+})();
+</script>
+{% endblock %}

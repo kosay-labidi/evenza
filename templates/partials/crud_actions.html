@@ -1,0 +1,7 @@
+{% comment %} Boutons d'une ligne de tableau. Variables : voir, modifier, supprimer (URL, chacune optionnelle).
+   Usage : {% url 'ressources:detail' r.pk as u_voir %}{% include "partials/crud_actions.html" with voir=u_voir %} {% endcomment %}
+<span class="row-actions">
+  {% if voir %}<a class="btn ghost sm" href="{{ voir }}">Voir</a>{% endif %}
+  {% if modifier %}<a class="btn ghost sm" href="{{ modifier }}">Modifier</a>{% endif %}
+  {% if supprimer %}<a class="btn ghost sm danger-text" href="{{ supprimer }}">Supprimer</a>{% endif %}
+</span>

@@ -1,11 +1,12 @@
 {% extends "app_base.html" %}{% block title %}Affectations{% endblock %}
-{% block banner %}{% include "partials/banner.html" with sur_titre="Gestion des ressources" titre="Affectations" texte="Les ressources réservées pour vos événements, créneau par créneau." %}{% endblock %}
+{% block banner %}{% include "partials/banner.html" with sur_titre="Ressources" titre="Affectations" texte="Les ressources réservées pour vos événements, créneau par créneau." %}{% endblock %}
 {% block content %}
 <form class="filters" method="get" style="grid-template-columns:1fr 1fr auto">
   <select name="evenement" aria-label="Événement"><option value="">Tous mes événements</option>{% for e in evenements %}<option value="{{ e.pk }}" {% if request.GET.evenement == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.titre }}</option>{% endfor %}</select>
   <select name="ressource" aria-label="Ressource"><option value="">Toutes les ressources</option>{% for r in ressources %}<option value="{{ r.pk }}" {% if request.GET.ressource == r.pk|stringformat:"s" %}selected{% endif %}>{{ r.nom }}</option>{% endfor %}</select>
   <button class="btn primary sm">Filtrer</button>
 </form>
+{% include "partials/choix_evenement.html" with titre="Affecter une ressource à un événement" url_action="ressources:affecter" bouton="Affecter" %}
 <div class="table-wrap"><table class="table"><thead><tr><th>Ressource</th><th>Quantité</th><th>Événement</th><th>Créneau</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
 {% for a in object_list %}<tr>
   <td><a href="{% url 'ressources:detail' a.ressource.pk %}">{{ a.ressource.nom }}</a></td><td>× {{ a.quantite }}</td>

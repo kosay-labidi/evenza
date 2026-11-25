@@ -1,5 +1,5 @@
 {% extends "app_base.html" %}{% block title %}Utilisateurs{% endblock %}
-{% block banner %}{% include "partials/banner.html" with sur_titre="Gestion des utilisateurs" titre="Utilisateurs" texte="Tous les comptes de la plateforme : participants, organisateurs, prestataires, clients et administrateurs." %}{% endblock %}
+{% block banner %}{% include "partials/banner.html" with sur_titre="Comptes" titre="Utilisateurs" texte="Tous les comptes de la plateforme : participants, organisateurs, prestataires, clients et administrateurs." %}{% endblock %}
 {% block content %}
 <div class="sec-head" style="margin-top:0"><h2>Liste</h2><a class="btn primary" href="{% url 'utilisateurs:utilisateur_creer' %}">+ Nouvel utilisateur</a></div>
 <form class="filters" method="get" role="search" style="grid-template-columns:1.6fr 1fr auto">

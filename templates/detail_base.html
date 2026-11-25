@@ -1,0 +1,17 @@
+{% extends "app_base.html" %}
+{% comment %} Gabarit commun des pages « détail » d'un module.
+   Blocs : title, eyebrow, heading, intro, page_actions (boutons Modifier / Supprimer), detail, related. {% endcomment %}
+{% block banner %}
+<section class="page-banner">
+  <div><span class="eyebrow">{% block eyebrow %}{{ nav_espace.actif.label }}{% endblock %}</span>
+    <h1>{% block heading %}{{ object }}{% endblock %}</h1>
+    {% block intro_wrap %}{% endblock %}</div>
+  <div class="actions">{% block page_actions %}{% endblock %}</div>
+</section>
+{% endblock %}
+{% block content %}
+<div class="dash-grid one">
+  <section class="panel">{% block detail %}{% endblock %}</section>
+  {% block related %}{% endblock %}
+</div>
+{% endblock %}

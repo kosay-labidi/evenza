@@ -1,0 +1,33 @@
+{% extends "list_base.html" %}{% block title %}Programmes{% endblock %}
+{% block heading %}Programmes{% endblock %}
+{% block intro %}Séances, horaires et intervenants de chacun de vos événements.{% endblock %}
+{% block page_actions %}<a class="btn ghost" href="{% url 'programmes:intervenants' %}">Intervenants ({{ nb_intervenants }})</a>{% endblock %}
+{% block filters %}{% include "partials/search_bar.html" with placeholder="Rechercher un événement ou une séance…" %}{% endblock %}
+{% block list %}
+<div class="dash-grid">
+  <section class="panel">
+    <div class="panel-head"><h2>Par événement</h2></div>
+    {% if evenements %}
+    <div class="table-wrap flat"><table class="table"><thead><tr><th>Événement</th><th>Date</th><th>Séances</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
+    {% for e in evenements %}<tr>
+      <td><a href="{{ e.get_absolute_url }}">{{ e.titre }}</a></td>
+      <td>{{ e.date_debut|date:"d/m/Y" }}</td>
+      <td>{{ e.nb_seances }}</td>
+      <td class="row-actions"><a class="btn ghost sm" href="{% url 'programmes:seance_creer' e.pk %}">+ Séance</a><a class="btn ghost sm" href="{{ e.get_absolute_url }}">Programme</a></td>
+    </tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}
+      {% url 'evenements:creer' as u_creer %}
+      {% include "partials/empty_state.html" with icone="programmes" titre="Aucun événement" texte="Créez un événement pour composer son programme." action_url=u_creer action_label="Créer un événement" %}
+    {% endif %}
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>Prochaines séances</h2></div>
+    <ul class="cal-list" style="margin:0;padding:0;border:0">
+    {% for s in prochaines_seances %}
+      <li><a href="{% url 'programmes:seance_modifier' s.pk %}"><span class="cal-date">{{ s.debut|date:"M" }}<b>{{ s.debut|date:"d" }}</b></span><span><b>{{ s.titre }}</b><small>{{ s.debut|date:"H:i" }}–{{ s.fin|date:"H:i" }} · {{ s.evenement.titre }}</small></span></a></li>
+    {% empty %}<li class="muted">Aucune séance à venir.</li>{% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

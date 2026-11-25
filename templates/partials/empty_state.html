@@ -1,0 +1,7 @@
+{# État vide. Variables : icone, titre, texte, action_url, action_label (tous optionnels). #}
+<div class="empty-state">
+  <span class="empty-ico">{% include "partials/icon.html" with nom=icone|default:"apercu" taille=26 %}</span>
+  <h3>{{ titre|default:"Rien à afficher pour l'instant" }}</h3>
+  {% if texte %}<p>{{ texte }}</p>{% endif %}
+  {% if action_url %}<a class="btn primary sm" href="{{ action_url }}">{{ action_label|default:"Ajouter" }}</a>{% endif %}
+</div>

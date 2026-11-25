@@ -1,4 +1,4 @@
-{% extends "app_base.html" %}{% block title %}Tableau de bord{% endblock %}
+{% extends "app_base.html" %}{% block title %}Vue d'ensemble{% endblock %}
 {% block banner %}
 <section class="page-banner">
   <div><span class="eyebrow">{{ user.get_role_display }}</span><h1>Bonjour {{ user.first_name|default:user.username }}</h1><p>Voici l'essentiel de votre activité Évenza.</p></div>
@@ -17,6 +17,8 @@
   <div class="kpi"><span class="kpi-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.4 7.2 17.9l.9-5.4-3.9-3.8 5.4-.8z"/></svg></span><b data-count="{{ nb_reservations }}">{{ nb_reservations }}</b><span>Réservations prestataires</span></div>
   <div class="kpi"><span class="kpi-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg></span><b data-count="{{ nb_affectations }}">{{ nb_affectations }}</b><span>Ressources affectées</span></div>
 </div>
+
+{% include "core/_modules.html" %}
 
 <div class="dash-grid">
   <section class="panel">

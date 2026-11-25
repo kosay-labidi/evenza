@@ -165,3 +165,8 @@ def erreur_403(request, exception=None):
 
 def erreur_404(request, exception=None):
     return render(request, "errors/404.html", status=404)
+
+
+class ApercuView(TemplateView):
+    """APERÇU TEMPORAIRE : verre 3D + toast au scroll (à retirer après intégration dans l'accueil)."""
+    template_name = "core/apercu.html"

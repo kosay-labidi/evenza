@@ -1,5 +1,5 @@
 {% extends "app_base.html" %}{% block title %}Lieux{% endblock %}
-{% block banner %}{% include "partials/banner.html" with sur_titre="Gestion des événements" titre="Lieux" %}{% endblock %}
+{% block banner %}{% include "partials/banner.html" with sur_titre="Événements" titre="Lieux" %}{% endblock %}
 {% block content %}
 <div class="sec-head" style="margin-top:0"><h2>Liste</h2><a class="btn primary" href="{% url 'evenements:lieu_creer' %}">+ Nouveau lieu</a></div>
 <div class="table-wrap"><table class="table"><thead><tr><th>Nom</th><th>Ville</th><th>Adresse</th><th>Capacité</th></tr></thead><tbody>

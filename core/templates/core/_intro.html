@@ -1,7 +1,7 @@
 {% load static %}
-{# Intro vidéo facultative : couche posée au-dessus de l'accueil. Sans JavaScript ou avec « réduire les animations », elle ne s'affiche jamais.
+{% comment %} Intro vidéo facultative : couche posée au-dessus de l'accueil. Sans JavaScript ou avec « réduire les animations », elle ne s'affiche jamais.
    Pour changer de vidéo : remplacer les fichiers dans static/video/ (paysage 16:9 + portrait 9:16, MP4 H.264, idéalement < 5 Mo).
-   data-max = durée maximale de l'intro en secondes (la vidéo est coupée en fondu au-delà). #}
+   data-max = durée maximale de l'intro en secondes (la vidéo est coupée en fondu au-delà). {% endcomment %}
 {# « intro--logo » : la vidéo contient déjà le logo, le nom et le slogan → le texte superposé est masqué. Retirer la classe pour une vidéo sans logo. #}
 <div class="intro intro--logo" id="intro" role="dialog" aria-modal="true" aria-label="Introduction Évenza" hidden
      data-scene="{% static 'js/intro-video.js' %}" data-max="7">

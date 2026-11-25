@@ -5,6 +5,7 @@ from django.views import View
 from django.views.generic import CreateView, ListView
 
 from core.mixins import OrganisateurRequiredMixin, ProprietaireEvenementMixin
+from core.permissions import evenements_geres
 from evenements.models import Evenement
 
 from .forms import PrestataireForm, ReservationForm
@@ -16,6 +17,11 @@ class PrestataireListView(OrganisateurRequiredMixin, ListView):
 
     def get_queryset(self):
         return Prestataire.objects.prefetch_related("services")
+
+    def get_context_data(self, **kwargs):
+        # Accès direct à la réservation d'un prestataire, sans passer par la page de l'événement.
+        evts = evenements_geres(self.request.user).exclude(statut=Evenement.Statut.ANNULE).order_by("-date_debut")
+        return super().get_context_data(evenements_choix=evts, **kwargs)
 
 
 class PrestataireCreateView(OrganisateurRequiredMixin, CreateView):

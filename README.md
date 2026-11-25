@@ -5,7 +5,7 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![Django](https://img.shields.io/badge/Django-5.2-092E20?logo=django&logoColor=white)
 ![SQLite](https://img.shields.io/badge/BDD-SQLite%20%7C%20PostgreSQL-003B57?logo=sqlite&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-49%20OK-2EA44F)
+![Tests](https://img.shields.io/badge/tests-65%20OK-2EA44F)
 ![Licence](https://img.shields.io/badge/projet-acad%C3%A9mique-512D3B)
 
 Projet réalisé dans le cadre du module **Génie logiciel** (ESPRIT, 3IA).
@@ -17,7 +17,7 @@ Projet réalisé dans le cadre du module **Génie logiciel** (ESPRIT, 3IA).
 
 ```bash
 git clone https://github.com/kosay-labidi/evenza.git && cd evenza
-python -m venv venv && venv\Scriptsctivate   # ou: source venv/bin/activate
+python -m venv venv && venv\Scripts\activate   # ou: source venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate && python manage.py seed_demo
 python manage.py runserver
@@ -25,11 +25,15 @@ python manage.py runserver
 
 Puis ouvrez http://127.0.0.1:8000/ et connectez-vous avec `organisateur` / `Demo12345!`.
 
+> **Travail en équipe** : la répartition des six gestions, les fichiers de chacun, la procédure Git/GitHub
+> et l'intégration finale sont décrites dans **[ORGANISATION_EQUIPE.md](ORGANISATION_EQUIPE.md)**.
+
 ---
 
 ## Sommaire
 
 - [Fonctionnalités](#fonctionnalités)
+- [Site public et espace professionnel](#site-public-et-espace-professionnel)
 - [Stack technique](#stack-technique)
 - [Installation](#installation)
 - [Comptes de démonstration](#comptes-de-démonstration)
@@ -53,8 +57,28 @@ Puis ouvrez http://127.0.0.1:8000/ et connectez-vous avec `organisateur` / `Demo
 | **Participants** | Réservation en 2 étapes (choix des billets puis récapitulatif), types de billets avec prix et quotas, billet QR imprimable, liste d'attente, check-in, avis |
 | **Prestataires** | Catalogue de prestataires et de services, réservation pour un événement |
 | **Ressources** | Matériel et salles, affectation sur un créneau avec **détection de conflit** |
-| **Tableau de bord** | Indicateurs clés, calendrier du mois avec les événements réels |
+| **Vue d'ensemble** | Indicateurs clés, accès direct aux modules autorisés, calendrier du mois avec les événements réels |
 | **Pages publiques** | Accueil, À propos, Contact (messages lisibles dans l'admin), FAQ |
+
+## Site public et espace professionnel
+
+La plateforme est organisée en **deux espaces** :
+
+| Espace | Gabarit | Contenu |
+|---|---|---|
+| **Site public** | `templates/base.html` + `partials/navbar.html` | Accueil (vidéos, animations), catalogue et détail des événements, réservation de billets, connexion / inscription, À propos, Contact, FAQ |
+| **Espace professionnel** | `templates/app_base.html` + `partials/sidebar.html` | Vue d'ensemble puis un module par gestion : Événements, Participants, Programmes, Prestataires, Ressources, Utilisateurs ; espace personnel (Mes billets, Mon profil, Retour au site, Déconnexion) |
+
+La barre latérale est **générée** : chaque application déclare son module dans `<app>/navigation.py`
+(intitulé, icône, page d'entrée, sous-liens, règle d'accès) et `core/navigation.py` les assemble.
+La même règle d'accès est appliquée côté serveur (`core/permissions.py`, `ModuleRequiredMixin`), si bien
+qu'un lien masqué correspond toujours à une page refusée (HTTP 403).
+
+| Rôle | Modules visibles |
+|---|---|
+| Administrateur | Vue d'ensemble + les six modules + Administration Django |
+| Organisateur | Vue d'ensemble, Événements, Participants, Programmes, Prestataires, Ressources |
+| Participant, Client, Prestataire | Vue d'ensemble, Mes billets, Mon profil |
 
 ## Stack technique
 
@@ -110,6 +134,7 @@ Créés par `seed_demo` :
 | `admin` | `Admin12345!` | Administrateur (accès à `/admin/`) |
 | `organisateur` | `Demo12345!` | Organisateur |
 | `participant` | `Demo12345!` | Participant |
+| `prestataire` | `Demo12345!` | Prestataire |
 
 > ⚠️ Ces identifiants servent uniquement au développement local. Ne les utilisez pas en production.
 
@@ -136,14 +161,14 @@ Une application Django par domaine de gestion :
 ```
 evenza/
 ├── evenza/            # Configuration du projet (settings, urls, wsgi, asgi)
-├── core/              # Accueil, tableau de bord, pages publiques, mixins de rôles, commande seed_demo
+├── core/              # Accueil, vue d'ensemble, pages publiques, permissions, navigation, mixins, seed_demo
 ├── utilisateurs/      # Modèle Utilisateur personnalisé, authentification, profils
 ├── evenements/        # Événements, lieux, catégories
 ├── programmes/        # Séances, intervenants
 ├── participants/      # Types de billets, inscriptions (billets QR), avis
 ├── prestataires/      # Prestataires, services, réservations
 ├── ressources/        # Ressources, affectations, détection de conflits
-├── templates/         # Gabarits communs (base, espace de gestion, partials, erreurs 403/404)
+├── templates/         # Gabarits communs : base (public), app_base (espace pro), list/detail/form/confirm_base, partials
 ├── static/            # CSS, JS, polices, images, vidéos, bibliothèques embarquées
 ├── media/             # Fichiers téléversés (ignoré par Git)
 ├── manage.py
@@ -160,10 +185,13 @@ evenza/
 | `ressources` | `Ressource`, `Affectation` |
 | `core` | `MessageContact` |
 
+Chaque application de gestion contient : `models.py`, `views.py`, `forms.py`, `urls.py` (namespace),
+`admin.py`, `tests.py`, `navigation.py` (son entrée de menu), `migrations/` et `templates/<app>/`.
+
 **Organisation MVT**
 - **Modèle** (`models.py`) : classes du diagramme de classes, règles de validation (`clean()`), attributs dérivés (`@property`) et opérations métier (`publier()`, `inscrire()`…).
-- **Vue** (`views.py`) : vues génériques (`ListView`, `DetailView`, `CreateView`, `UpdateView`, `DeleteView`) et contrôle d'accès par rôle (`core/mixins.py`).
-- **Template** : `templates/base.html` commun, puis un dossier de templates par application.
+- **Vue** (`views.py`) : vues génériques (`ListView`, `DetailView`, `CreateView`, `UpdateView`, `DeleteView`) et contrôle d'accès par rôle (`core/mixins.py`, règles dans `core/permissions.py`).
+- **Template** : `templates/base.html` (site public) et `templates/app_base.html` (espace professionnel), gabarits CRUD communs (`list_base`, `detail_base`, `form_base`, `confirm_base`), puis un dossier de templates par application.
 - **URL** (`urls.py`) : chaque application a son espace de noms (`evenements:detail`…).
 
 ## Règles de gestion
@@ -185,7 +213,15 @@ evenza/
 python manage.py test
 ```
 
-49 tests, tous au vert. Ils couvrent les règles métier des applications `evenements`, `participants`, `prestataires`, `ressources` et `utilisateurs`.
+65 tests, tous au vert. Ils couvrent les règles métier des applications `evenements`, `participants`, `prestataires`, `ressources`, `programmes` et `utilisateurs`, ainsi que l'architecture commune (`core/tests.py` : menu par rôle, accès direct aux six modules, contrôle des permissions côté serveur).
+
+Vérifications à lancer avant chaque Pull Request :
+
+```bash
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py test
+```
 
 ## Plan des URL
 
@@ -198,12 +234,16 @@ python manage.py test
 | `/participants/evenement/<id>/reserver/` | Réservation (billets puis récapitulatif) |
 | `/participants/billet/<code>/` | Billet QR |
 | `/participants/evenement/<id>/checkin/` | Contrôle d'entrée |
-| `/prestataires/`, `/ressources/` | Référentiels |
-| `/tableau-de-bord/` | Tableau de bord |
+| `/tableau-de-bord/` | Vue d'ensemble (espace professionnel) |
+| `/evenements/mes-evenements/` | Module Événements |
+| `/participants/` | Module Participants |
+| `/programmes/` | Module Programmes |
+| `/prestataires/` | Module Prestataires |
+| `/ressources/` | Module Ressources |
+| `/comptes/utilisateurs/` | Module Utilisateurs (administrateur) |
 | `/comptes/connexion/` | Connexion |
 | `/comptes/inscription/` | Inscription |
 | `/comptes/profil/` | Profil |
-| `/comptes/utilisateurs/` | Gestion des utilisateurs (administrateur) |
 | `/participants/mes-inscriptions/` | Mes réservations |
 | `/comptes/mot-de-passe/oublie/` | Mot de passe oublié |
 | `/a-propos/`, `/contact/`, `/faq/` | Pages d'information |
@@ -215,7 +255,7 @@ Direction artistique **« Luxury Editorial × Modern Interactive »** : bordeaux
 
 - **Jetons de couleur** dans le bloc `:root` de `static/css/style.css` (`--color-primary`, `--color-accent`, `--color-background`…). Modifier une couleur à cet endroit la change dans tout le site.
 - **Polices** hébergées localement (`static/fonts/`) : Cormorant Garamond (titres) et Inter (texte).
-- **Feuilles de style** : `style.css` (design system et pages publiques), `home.css` (accueil), `dashboard.css` (espace de gestion), `auth.css` (comptes).
+- **Feuilles de style** : `style.css` (design system et pages publiques), `home.css` (accueil), `dashboard.css` (espace professionnel : barre latérale, cartes de modules, états vides), `auth.css` (comptes).
 - **Animations** (`static/js/main.js`, `motion.js`) : apparition au défilement (`reveal`, `stagger`), compteurs (`data-count`), titres mot par mot (`data-split`), parallaxe (`data-parallax`), transitions entre pages.
 - **Intro vidéo facultative** (`static/js/intro-video.js`) : film de 7 s, 5 plans plein écran (mariage → concert → gala → conférence → festival) avec filtre doré, puis logo « EV » sur fond crème. Fichiers : `static/video/evenza-intro7.{webm,mp4}` (1920×1080) et `evenza-intro7-portrait.{webm,mp4}` (1080×1920, mobile), < 2 Mo chacun ; WebM lu en priorité, MP4 en repli. Jouée une fois par session (`data-max` dans `core/templates/core/_intro.html`). `/?intro=1` la rejoue, `/?intro=0` la saute, Échap la passe. Plans issus de Mixkit (licence gratuite Mixkit, sans attribution obligatoire) : 5382, 48509, 51541, 13193, 4188.
 - **Film « Un soir en Méditerranée »** (`static/js/film.js`) : séquence de 30 s en Ken Burns, lancée avec `/?film=1`.

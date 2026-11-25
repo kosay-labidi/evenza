@@ -1,5 +1,5 @@
 {% extends "app_base.html" %}{% block title %}Ressources{% endblock %}
-{% block banner %}{% include "partials/banner.html" with sur_titre="Gestion des ressources" titre="Ressources" texte="Salles, matériel et véhicules disponibles pour vos événements." %}{% endblock %}
+{% block banner %}{% include "partials/banner.html" with sur_titre="Catalogue" titre="Ressources" texte="Salles, matériel et véhicules disponibles pour vos événements." %}{% endblock %}
 {% block content %}
 <div class="sec-head" style="margin-top:0"><h2>Liste</h2><div class="actions" style="margin:0"><a class="btn ghost" href="{% url 'ressources:affectations' %}">Voir les affectations</a><a class="btn primary" href="{% url 'ressources:creer' %}">+ Nouvelle ressource</a></div></div>
 <div class="table-wrap"><table class="table"><thead><tr><th>Nom</th><th>Type</th><th>Quantité</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>

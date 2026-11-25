@@ -4,6 +4,7 @@ from . import views
 
 app_name = "participants"
 urlpatterns = [
+    path("", views.ParticipantsAccueilView.as_view(), name="index"),          # page d'entrée du module
     path("mes-inscriptions/", views.MesInscriptionsView.as_view(), name="mes_inscriptions"),
     path("evenement/<int:evenement_pk>/inscrire/", views.InscrireView.as_view(), name="inscrire"),
     path("evenement/<int:evenement_pk>/reserver/", views.ReservationView.as_view(), name="reserver"),

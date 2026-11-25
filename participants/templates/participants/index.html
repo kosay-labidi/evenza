@@ -1,0 +1,33 @@
+{% extends "list_base.html" %}{% block title %}Participants{% endblock %}
+{% block heading %}Participants{% endblock %}
+{% block intro %}Inscrits, listes d'attente et contrôle d'entrée de vos événements.{% endblock %}
+{% block kpis %}
+<div class="kpi-grid stagger">
+  <div class="kpi"><span class="kpi-ico">{% include "partials/icon.html" with nom="participants" taille=22 %}</span><b data-count="{{ totaux.confirmes }}">{{ totaux.confirmes }}</b><span>Places confirmées</span></div>
+  <div class="kpi"><span class="kpi-ico">{% include "partials/icon.html" with nom="programmes" taille=22 %}</span><b data-count="{{ totaux.attente }}">{{ totaux.attente }}</b><span>En liste d'attente</span></div>
+  <div class="kpi"><span class="kpi-ico">{% include "partials/icon.html" with nom="billet" taille=22 %}</span><b data-count="{{ totaux.presents }}">{{ totaux.presents }}</b><span>Entrées validées</span></div>
+</div>
+{% endblock %}
+{% block filters %}{% include "partials/search_bar.html" with placeholder="Rechercher un événement ou une ville…" %}{% endblock %}
+{% block list %}
+{% if evenements %}
+<div class="table-wrap"><table class="table"><thead><tr><th>Événement</th><th>Date</th><th>Confirmés</th><th>Attente</th><th>Présents</th><th>Statut</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
+{% for e in evenements %}<tr>
+  <td><a href="{{ e.get_absolute_url }}">{{ e.titre }}</a></td>
+  <td>{{ e.date_debut|date:"d/m/Y H:i" }}</td>
+  <td>{{ e.nb_confirmes|default:0 }} / {{ e.capacite }}</td>
+  <td>{{ e.nb_attente }}</td>
+  <td>{{ e.nb_presents }}</td>
+  <td><span class="badge {{ e.statut|lower }}">{{ e.get_statut_display }}</span></td>
+  <td class="row-actions">
+    <a class="btn ghost sm" href="{% url 'participants:liste' e.pk %}">Inscrits</a>
+    <a class="btn ghost sm" href="{% url 'participants:checkin' e.pk %}">Check-in</a>
+    <a class="btn ghost sm" href="{% url 'participants:type_creer' e.pk %}">+ Billet</a>
+  </td>
+</tr>{% endfor %}
+</tbody></table></div>
+{% else %}
+  {% url 'evenements:creer' as u_creer %}
+  {% include "partials/empty_state.html" with icone="participants" titre="Aucun événement à suivre" texte="Les inscrits apparaîtront ici dès que vous aurez créé un événement." action_url=u_creer action_label="Créer un événement" %}
+{% endif %}
+{% endblock %}

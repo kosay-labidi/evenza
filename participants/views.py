@@ -2,17 +2,53 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from django.db.models import Count, Q, Sum
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
 from django.views.generic import CreateView, DetailView, FormView, ListView
 
-from core.mixins import ProprietaireEvenementMixin
+from core.mixins import ModuleRequiredMixin, ProprietaireEvenementMixin
+from core.permissions import evenements_geres
 from evenements.models import Evenement
 
 from .forms import AvisForm, CheckinForm, ReservationForm, TypeBilletForm
 from .models import Avis, Inscription, TypeBillet
+
+
+class ParticipantsAccueilView(ModuleRequiredMixin, ListView):
+    """Page d'entrée du module Participants : accès direct, sans passer par la page d'un événement.
+
+    Liste les événements que l'utilisateur gère, avec leurs chiffres d'inscription, et renvoie
+    vers les écrans existants (liste des inscrits, check-in, types de billets).
+    """
+    module = "participants"
+    template_name = "participants/index.html"
+    context_object_name = "evenements"
+    paginate_by = 12
+
+    def get_queryset(self):
+        qs = evenements_geres(self.request.user).annotate(
+            nb_confirmes=Sum("inscriptions__quantite", filter=Q(inscriptions__statut=Inscription.Statut.CONFIRMEE)),
+            nb_attente=Count("inscriptions", filter=Q(inscriptions__statut=Inscription.Statut.ATTENTE)),
+            nb_presents=Count("inscriptions", filter=Q(inscriptions__present=True)),
+        ).order_by("-date_debut")
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(Q(titre__icontains=q) | Q(lieu__ville__icontains=q))
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["q"] = self.request.GET.get("q", "")
+        mes = Inscription.objects.filter(evenement__in=evenements_geres(self.request.user))
+        ctx["totaux"] = {
+            "confirmes": mes.filter(statut=Inscription.Statut.CONFIRMEE).aggregate(n=Sum("quantite"))["n"] or 0,
+            "attente": mes.filter(statut=Inscription.Statut.ATTENTE).count(),
+            "presents": mes.filter(present=True).count(),
+        }
+        return ctx
 
 
 class InscrireView(LoginRequiredMixin, View):

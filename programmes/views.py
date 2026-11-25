@@ -1,13 +1,40 @@
 from django.contrib import messages
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
-from core.mixins import OrganisateurRequiredMixin, ProprietaireEvenementMixin
+from core.mixins import ModuleRequiredMixin, OrganisateurRequiredMixin, ProprietaireEvenementMixin
+from core.permissions import evenements_geres
 from evenements.models import Evenement
 
 from .forms import IntervenantForm, SeanceForm
 from .models import Intervenant, Seance
+
+
+class ProgrammesAccueilView(ModuleRequiredMixin, ListView):
+    """Page d'entrée du module Programmes : accès direct aux séances de tous les événements gérés."""
+    module = "programmes"
+    template_name = "programmes/index.html"
+    context_object_name = "evenements"
+    paginate_by = 12
+
+    def get_queryset(self):
+        qs = evenements_geres(self.request.user).annotate(nb_seances=Count("seances")).order_by("-date_debut")
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(Q(titre__icontains=q) | Q(seances__titre__icontains=q)).distinct()
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["q"] = self.request.GET.get("q", "")
+        ctx["prochaines_seances"] = (Seance.objects.filter(evenement__in=evenements_geres(self.request.user),
+                                                           fin__gte=timezone.now())
+                                     .select_related("evenement").prefetch_related("intervenants")[:8])
+        ctx["nb_intervenants"] = Intervenant.objects.count()
+        return ctx
 
 
 class SeanceCreateView(ProprietaireEvenementMixin, CreateView):

@@ -12,3 +12,4 @@ _sauvegarde_images/
 staticfiles/
 .idea/
 .vscode/
+*.log

@@ -100,6 +100,7 @@ class AffectationListView(OrganisateurRequiredMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         u = self.request.user
         ctx["evenements"] = Evenement.objects.all() if u.est_admin else Evenement.objects.filter(organisateur=u)
+        ctx["evenements_choix"] = ctx["evenements"].exclude(statut=Evenement.Statut.ANNULE).order_by("-date_debut")
         ctx["ressources"] = Ressource.objects.all()
         params = self.request.GET.copy(); params.pop("page", None)
         ctx["filtres"] = params.urlencode()
