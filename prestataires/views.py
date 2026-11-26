@@ -12,6 +12,11 @@ from .forms import PrestataireForm, ReservationForm
 from .models import Prestataire, Reservation
 
 
+def _event_return_url(request, evenement):
+    url = evenement.get_absolute_url()
+    return f"{url}?sans_programmes=1" if request.GET.get("sans_programmes") == "1" else url
+
+
 class PrestataireListView(OrganisateurRequiredMixin, ListView):
     model = Prestataire
 
@@ -46,7 +51,7 @@ class ReservationCreateView(ProprietaireEvenementMixin, CreateView):
         return super().form_valid(form)
 
     def get_success_url(self):
-        return self.object.evenement.get_absolute_url()
+        return _event_return_url(self.request, self.object.evenement)
 
 
 class ReservationStatutView(ProprietaireEvenementMixin, View):

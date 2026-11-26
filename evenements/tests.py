@@ -47,6 +47,22 @@ class EvenementTests(TestCase):
         r = self.client.get(reverse("evenements:creer"))
         self.assertEqual(r.status_code, 200)
 
+    def test_gerer_depuis_mes_evenements_ouvre_le_bon_programme(self):
+        self.client.force_login(self.org)
+        response = self.client.get(reverse("evenements:mes_evenements"))
+        self.assertContains(response, f'href="{self.e.get_absolute_url()}">Gérer')
+        self.assertNotContains(response, f'{self.e.get_absolute_url()}?sans_programmes=1')
+        detail = self.client.get(self.e.get_absolute_url())
+        self.assertEqual(detail.context["object"].pk, self.e.pk)
+        self.assertContains(detail, 'id="programme-timeline"')
+
+    def test_menu_accueil_sans_programmes_conserve_les_autres_modules(self):
+        self.client.force_login(self.org)
+        response = self.client.get(reverse("core:home"))
+        self.assertNotContains(response, 'href="/programmes/"')
+        for url_name in ("evenements:mes_evenements", "participants:index", "prestataires:liste", "ressources:liste"):
+            self.assertContains(response, f'href="{reverse(url_name)}"')
+
 
 class RechercheTests(TestCase):
     """Recherche de l'accueil : ville et date, en plus du mot-clé et de la catégorie."""
@@ -106,7 +122,15 @@ class CorrectionsEvenementTests(TestCase):
 
     def test_brouillon_visible_pour_son_organisateur(self):
         self.client.login(username="org", password="Test12345!")
-        self.assertEqual(self.client.get(reverse("evenements:detail", args=[self.e.pk])).status_code, 200)
+        url = reverse("evenements:detail", args=[self.e.pk])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="programme-timeline"')
+        response = self.client.get(url, {"sans_programmes": "1"})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'id="programme-timeline"')
+
+        self.assertContains(response, "À propos")
 
     def test_suppression_refusee_avec_reservations(self):
         from participants.models import Inscription

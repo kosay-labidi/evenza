@@ -1,7 +1,7 @@
 {# Cartes d'accès direct aux modules autorisés (générées depuis core/navigation.py). #}
 {% if nav_espace.principale|length > 1 %}
 <section class="module-grid stagger" aria-label="Vos espaces de travail">
-  {% for m in nav_espace.principale %}{% if m.cle != "apercu" %}
+  {% for m in nav_espace.principale %}{% if m.cle != "apercu" and m.cle != "programmes" %}
   <a class="module-card" href="{% url m.url_name %}" data-module="{{ m.cle }}">
     <span class="module-ico">{% include "partials/icon.html" with nom=m.icone taille=22 %}</span>
     <span class="module-txt"><b>{{ m.label }}</b><small>{{ m.description }}</small></span>

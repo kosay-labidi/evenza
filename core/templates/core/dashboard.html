@@ -26,7 +26,7 @@
     <div class="table-wrap flat"><table class="table"><thead><tr><th>Titre</th><th>Date</th><th>Lieu</th><th>Remplissage</th><th>Statut</th><th><span class="sr-only">Action</span></th></tr></thead><tbody>
     {% for e in mes_evenements %}<tr><td>{{ e.titre }}</td><td>{{ e.date_debut|date:"d/m/Y H:i" }}</td><td>{{ e.lieu.ville }}</td>
       <td>{% with t=e.taux_remplissage %}<span class="fill" title="{{ e.nb_inscrits }} / {{ e.capacite }} places"><i style="width: {{ t }}%"></i></span><small class="muted">{{ t }} %</small>{% endwith %}</td>
-      <td><span class="badge {{ e.statut|lower }}">{{ e.get_statut_display }}</span></td><td><a href="{{ e.get_absolute_url }}">Gérer →</a></td></tr>
+      <td><span class="badge {{ e.statut|lower }}">{{ e.get_statut_display }}</span></td><td><a href="{{ e.get_absolute_url }}?sans_programmes=1">Gérer →</a></td></tr>
     {% empty %}<tr><td colspan="6" class="muted">Aucun événement. <a href="{% url 'evenements:creer' %}">Créer le premier</a></td></tr>{% endfor %}
     </tbody></table></div>
   </section>

@@ -7,7 +7,7 @@
   </table>
   {% if calendrier.evenements %}
   <ul class="cal-list">
-    {% for e in calendrier.evenements|slice:":4" %}<li><a href="{{ e.get_absolute_url }}"><span class="cal-date"><b>{{ e.date_debut|date:"d" }}</b>{{ e.date_debut|date:"M" }}</span><span><b>{{ e.titre }}</b><small>{{ e.date_debut|date:"H:i" }} · {{ e.lieu.ville }}</small></span></a></li>{% endfor %}
+    {% for e in calendrier.evenements|slice:":4" %}<li><a href="{{ e.get_absolute_url }}?sans_programmes=1"><span class="cal-date"><b>{{ e.date_debut|date:"d" }}</b>{{ e.date_debut|date:"M" }}</span><span><b>{{ e.titre }}</b><small>{{ e.date_debut|date:"H:i" }} · {{ e.lieu.ville }}</small></span></a></li>{% endfor %}
   </ul>
   {% else %}<p class="muted small" style="margin:16px 0 0">Aucun événement ce mois-ci.</p>{% endif %}
 </section>
