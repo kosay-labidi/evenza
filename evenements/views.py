@@ -73,7 +73,7 @@ class EvenementDetailView(DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         e, u = self.object, self.request.user
-        ctx["seances"] = e.seances.prefetch_related("intervenants")
+        ctx["seances"] = e.seances.order_by("date")
         ctx["billets"] = e.types_billet.all()
         ctx["peut_modifier"] = u.is_authenticated and (u.est_admin or e.organisateur_id == u.id)
         ctx["mon_inscription"] = e.inscriptions.filter(participant=u).first() if u.is_authenticated else None

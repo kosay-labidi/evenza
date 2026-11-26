@@ -4,12 +4,14 @@
   <nav class="side-nav" aria-label="Navigation principale">
     <p class="side-label">Navigation principale</p>
     {% for m in nav_espace.principale %}
+      {% if m.cle != "programmes" or request.resolver_match.namespace == "programmes" %}
       <a href="{% url m.url_name %}" class="side-link{% if m.actif %} active{% endif %}"{% if m.actif and not m.sous_liens %} aria-current="page"{% endif %} data-module="{{ m.cle }}">
         {% include "partials/icon.html" with nom=m.icone %}<span>{{ m.label }}</span></a>
       {% if m.sous_liens %}
       <ul class="side-sub" role="list">
         {% for l in m.sous_liens %}<li><a href="{% url l.url_name %}" class="{% if l.actif %}active{% endif %}"{% if l.actif %} aria-current="page"{% endif %}>{{ l.label }}</a></li>{% endfor %}
       </ul>
+      {% endif %}
       {% endif %}
     {% endfor %}
   </nav>

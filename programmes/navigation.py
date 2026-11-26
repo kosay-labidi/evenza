@@ -9,9 +9,8 @@ MODULE = Module(
     icone="programmes",
     acces=peut_organiser,
     namespace="programmes",
-    description="Séances, horaires, salles et intervenants de chaque événement.",
+    description="Séances et horaires de chaque événement.",
     sous_liens=(
         Lien("Séances", "programmes:index", ("index", "seance_creer", "seance_modifier", "seance_supprimer")),
-        Lien("Intervenants", "programmes:intervenants", ("intervenants", "intervenant_creer")),
     ),
 )

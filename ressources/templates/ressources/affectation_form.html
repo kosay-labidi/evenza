@@ -1,3 +1,3 @@
 {% extends "form_base.html" %}{% block title %}{% if object %}Modifier une affectation{% else %}Affecter une ressource{% endif %}{% endblock %}
 {% block eyebrow %}{{ evenement }}{% endblock %}{% block heading %}{% if object %}Modifier l'affectation{% else %}Affecter une ressource{% endif %}{% endblock %}{% block submit %}{% if object %}Enregistrer{% else %}Affecter{% endif %}{% endblock %}
-{% block cancel %}{{ evenement.get_absolute_url }}{% endblock %}
+{% block cancel %}{{ evenement.get_absolute_url }}{% if request.GET.sans_programmes %}?sans_programmes=1{% endif %}{% endblock %}

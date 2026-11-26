@@ -70,18 +70,34 @@ class MenuParRoleTests(Fixtures):
             perso = [m["cle"] for m in r.context["nav_espace"]["personnelle"]]
             self.assertEqual(perso, ["billets", "profil"])
 
-    def test_libelles_de_la_barre_laterale(self):
+    def test_libelles_de_la_barre_laterale_du_dashboard(self):
         r, _ = self.nav(self.admin)
-        for label in ("Vue d'ensemble", "Événements", "Participants", "Programmes", "Prestataires", "Ressources",
+        for label in ("Vue d'ensemble", "Événements", "Participants", "Prestataires", "Ressources",
                       "Utilisateurs", "Mon profil", "Retour au site", "Déconnexion"):
             self.assertContains(r, escape(label))
+        self.assertNotContains(r, 'class="side-link" data-module="programmes"')
         self.assertNotContains(r, "Gestion des")
 
+    def test_programmes_reste_dans_la_sidebar_hors_dashboard(self):
+        r, _ = self.nav(self.admin, "programmes:index")
+        self.assertContains(r, "Programmes")
+
+    def test_pages_backoffice_listees_ne_proposent_pas_programmes_dans_la_sidebar(self):
+        pages = (
+            "core:dashboard", "evenements:mes_evenements", "evenements:creer", "evenements:lieux",
+            "prestataires:liste", "ressources:liste", "ressources:affectations",
+            "participants:mes_inscriptions", "utilisateurs:profil",
+        )
+        for page in pages:
+            with self.subTest(page=page):
+                r, _ = self.nav(self.orga, page)
+                self.assertNotContains(r, 'data-module="programmes"')
+
     def test_module_actif_et_sous_liens(self):
-        r, _ = self.nav(self.orga, "programmes:intervenants")
+        r, _ = self.nav(self.orga, "programmes:index")
         actif = r.context["nav_espace"]["actif"]
         self.assertEqual(actif["cle"], "programmes")
-        self.assertEqual([l["label"] for l in actif["sous_liens"] if l["actif"]], ["Intervenants"])
+        self.assertEqual([l["label"] for l in actif["sous_liens"] if l["actif"]], ["Séances"])
         r, _ = self.nav(self.orga, "participants:mes_inscriptions")
         self.assertEqual(r.context["nav_espace"]["actif"]["cle"], "billets")       # espace personnel
         r, _ = self.nav(self.orga, "utilisateurs:profil")
@@ -122,7 +138,8 @@ class AccesDirectTests(Fixtures):
 
     def test_vue_d_ensemble_propose_les_modules(self):
         r, _ = self.nav(self.orga)
-        self.assertContains(r, 'class="module-card"', count=5)
+        self.assertContains(r, 'class="module-card"', count=4)
+        self.assertNotContains(r, 'data-module="programmes"')
 
 
 class SitePublicTests(TestCase):

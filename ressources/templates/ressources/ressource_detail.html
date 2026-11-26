@@ -13,7 +13,7 @@
 <section class="panel">
   <div class="panel-head"><h2>Affectations</h2><span class="muted small">{{ affectations|length }}</span></div>
   <div class="table-wrap flat"><table class="table"><thead><tr><th>Événement</th><th>Lieu</th><th>Quantité</th><th>Créneau</th></tr></thead><tbody>
-  {% for a in affectations %}<tr><td><a href="{{ a.evenement.get_absolute_url }}">{{ a.evenement.titre }}</a></td><td>{{ a.evenement.lieu.ville }}</td><td>× {{ a.quantite }}</td><td>{{ a.debut|date:"d/m/Y H:i" }} → {{ a.fin|date:"d/m H:i" }}</td></tr>
+  {% for a in affectations %}<tr><td><a href="{{ a.evenement.get_absolute_url }}?sans_programmes=1">{{ a.evenement.titre }}</a></td><td>{{ a.evenement.lieu.ville }}</td><td>× {{ a.quantite }}</td><td>{{ a.debut|date:"d/m/Y H:i" }} → {{ a.fin|date:"d/m H:i" }}</td></tr>
   {% empty %}<tr><td colspan="4" class="muted">Cette ressource n'est affectée à aucun événement.</td></tr>{% endfor %}
   </tbody></table></div>
 </section>
