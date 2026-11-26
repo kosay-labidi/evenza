@@ -2,22 +2,14 @@
 {% block card %}
 <div class="auth-head"><span class="eyebrow">Espace membre</span><h1>Bon retour !</h1><p class="muted">Connectez-vous pour gérer vos événements et vos billets.</p></div>
 <form method="post" class="aform" novalidate>{% csrf_token %}
-  {% if form.non_field_errors %}<div class="msg error">Identifiant ou mot de passe incorrect. Vérifiez les majuscules.</div>{% endif %}
+  {% if bloque %}<div class="msg error" role="alert">Trop de tentatives de connexion. Réessayez dans {{ duree_blocage }} minutes ou utilisez « Mot de passe oublié ».</div>
+  {% elif form.non_field_errors %}<div class="msg error" role="alert">Identifiant ou mot de passe incorrect. Vérifiez les majuscules.</div>{% endif %}
   {% include "partials/auth_field.html" with field=form.username label="Nom d'utilisateur ou e-mail" %}
   {% include "partials/auth_field.html" with field=form.password eye=1 %}
-  <div class="arow"><label class="check"><input type="checkbox" name="remember" checked> Se souvenir de moi</label>
+  <div class="arow"><label class="check"><input type="checkbox" name="remember" {% if request.POST.remember %}checked{% endif %}> Se souvenir de moi</label>
     <a href="{% url 'utilisateurs:password_reset' %}">Mot de passe oublié ?</a></div>
   <input type="hidden" name="next" value="{{ next }}">
   <button class="btn primary full" type="submit">Se connecter</button>
 </form>
-<div class="sep"><span>Comptes de démonstration</span></div>
-<div class="demo">
-  <button type="button" data-u="organisateur" data-p="Demo12345!">Organisateur</button>
-  <button type="button" data-u="participant" data-p="Demo12345!">Participant</button>
-  <button type="button" data-u="admin" data-p="Admin12345!">Admin</button>
-</div>
 <p class="auth-alt">Pas encore de compte ? <a href="{% url 'utilisateurs:register' %}">Créer un compte</a></p>
 {% endblock %}
-{% block extra_js %}<script>
-document.querySelectorAll('.demo button').forEach(b => b.onclick = () => { id_username.value = b.dataset.u; id_password.value = b.dataset.p; id_password.focus(); });
-</script>{% endblock %}

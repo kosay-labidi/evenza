@@ -1,0 +1,114 @@
+-- MySQL 8+. Importer dans une base vide choisie par l'administrateur.
+-- Aucun DROP, aucune suppression ou insertion de données fictives.
+CREATE TABLE IF NOT EXISTS users (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, name VARCHAR(120) NOT NULL,
+ email VARCHAR(190) NOT NULL UNIQUE, password_hash VARCHAR(255) NOT NULL,
+ role ENUM('Administrateur','Organisateur','Client','Prestataire','Participant') NOT NULL DEFAULT 'Participant',
+ phone VARCHAR(30) NOT NULL DEFAULT '', active TINYINT NOT NULL DEFAULT 1,
+ availability VARCHAR(255) NOT NULL DEFAULT '', skills VARCHAR(255) NOT NULL DEFAULT '',
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX(role)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS events (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, title VARCHAR(160) NOT NULL, description TEXT,
+ start_at DATETIME NOT NULL, end_at DATETIME NOT NULL, location VARCHAR(255) NOT NULL,
+ type ENUM('Mariage','Entreprise','Privé','Conférence','Autre') NOT NULL DEFAULT 'Autre',
+ capacity INT UNSIGNED NOT NULL, budget DECIMAL(12,2) NOT NULL DEFAULT 0,
+ status ENUM('Brouillon','En préparation','Confirmé','Terminé','Annulé') NOT NULL DEFAULT 'Brouillon',
+ client_id BIGINT UNSIGNED NULL, organizer_id BIGINT UNSIGNED NULL, validator_id BIGINT UNSIGNED NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY(client_id) REFERENCES users(id) ON DELETE RESTRICT,
+ FOREIGN KEY(organizer_id) REFERENCES users(id) ON DELETE RESTRICT,
+ FOREIGN KEY(validator_id) REFERENCES users(id) ON DELETE RESTRICT,
+ CHECK(end_at > start_at), CHECK(capacity > 0), CHECK(budget >= 0), INDEX(start_at,status)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS providers (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, name VARCHAR(160) NOT NULL, specialty VARCHAR(120) NOT NULL,
+ city VARCHAR(120) NOT NULL, email VARCHAR(190) NOT NULL, phone VARCHAR(30) NOT NULL DEFAULT '',
+ user_id BIGINT UNSIGNED NULL UNIQUE, availability VARCHAR(255) NOT NULL DEFAULT '',
+ status ENUM('Disponible','Réservé','Inactif') NOT NULL DEFAULT 'Disponible',
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS services (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, provider_id BIGINT UNSIGNED NOT NULL,
+ name VARCHAR(160) NOT NULL, description TEXT, price DECIMAL(12,2) NOT NULL,
+ status ENUM('Actif','Inactif') NOT NULL DEFAULT 'Actif',
+ FOREIGN KEY(provider_id) REFERENCES providers(id) ON DELETE RESTRICT, CHECK(price >= 0)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS reservations (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, event_id BIGINT UNSIGNED NOT NULL, service_id BIGINT UNSIGNED NOT NULL,
+ amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+ status ENUM('En attente','Acceptée','Refusée','Annulée') NOT NULL DEFAULT 'En attente',
+ rating INT NULL, comment TEXT,
+ FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE RESTRICT,
+ FOREIGN KEY(service_id) REFERENCES services(id) ON DELETE RESTRICT,
+ CHECK(amount >= 0), CHECK(rating BETWEEN 1 AND 5), INDEX(event_id,status)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS programs (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, event_id BIGINT UNSIGNED NOT NULL,
+ title VARCHAR(160) NOT NULL, description TEXT, start_at DATETIME NOT NULL, end_at DATETIME NOT NULL,
+ speaker VARCHAR(160) NOT NULL DEFAULT '', status ENUM('Planifié','Confirmé','Terminé') NOT NULL DEFAULT 'Planifié',
+ FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE RESTRICT, CHECK(end_at > start_at), INDEX(start_at)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS participants (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, event_id BIGINT UNSIGNED NOT NULL,
+ user_id BIGINT UNSIGNED NULL, name VARCHAR(120) NOT NULL, email VARCHAR(190) NOT NULL,
+ category VARCHAR(80) NOT NULL DEFAULT 'Invité', preference VARCHAR(160) NOT NULL DEFAULT '', seat VARCHAR(80) NOT NULL DEFAULT '',
+ status ENUM('Invité','Inscrit','Confirmé','Présent','Absent','Liste d’attente','Annulé','Refusé') NOT NULL DEFAULT 'Inscrit',
+ badge_token CHAR(64) NOT NULL UNIQUE, rating INT NULL, feedback TEXT,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE RESTRICT,
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE RESTRICT,
+ UNIQUE(event_id,email), CHECK(rating BETWEEN 1 AND 5), INDEX(event_id,status)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS resources (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, name VARCHAR(160) NOT NULL,
+ category ENUM('Mobilier','Son & lumière','Décoration','Espace','Autre') NOT NULL DEFAULT 'Autre',
+ quantity INT UNSIGNED NOT NULL, status ENUM('Disponible','Maintenance','Indisponible') NOT NULL DEFAULT 'Disponible',
+ description TEXT
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS allocations (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, event_id BIGINT UNSIGNED NOT NULL, resource_id BIGINT UNSIGNED NOT NULL,
+ quantity INT UNSIGNED NOT NULL, start_at DATETIME NOT NULL, end_at DATETIME NOT NULL,
+ status ENUM('Affecté','Annulé') NOT NULL DEFAULT 'Affecté',
+ FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE RESTRICT,
+ FOREIGN KEY(resource_id) REFERENCES resources(id) ON DELETE RESTRICT,
+ CHECK(quantity > 0), CHECK(end_at > start_at), INDEX(resource_id,start_at,end_at)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS complaints (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, participant_id BIGINT UNSIGNED NOT NULL,
+ subject VARCHAR(160) NOT NULL, message TEXT NOT NULL,
+ status ENUM('Ouverte','En cours','Résolue') NOT NULL DEFAULT 'Ouverte', response TEXT,
+ FOREIGN KEY(participant_id) REFERENCES participants(id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS suggestions (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, event_id BIGINT UNSIGNED NOT NULL,
+ title VARCHAR(160) NOT NULL, start_at DATETIME NOT NULL, end_at DATETIME NOT NULL,
+ status ENUM('En attente','Validée','Rejetée') NOT NULL DEFAULT 'En attente',
+ FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS notifications (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id BIGINT UNSIGNED NOT NULL,
+ message VARCHAR(500) NOT NULL, read_at DATETIME NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE, INDEX(user_id,read_at)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS activities (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id BIGINT UNSIGNED NULL,
+ entity VARCHAR(60) NOT NULL, record_id BIGINT UNSIGNED NULL, action VARCHAR(60) NOT NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS login_attempts (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, email VARCHAR(190) NOT NULL, ip VARCHAR(64) NOT NULL,
+ success TINYINT NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX(email,created_at), INDEX(ip,created_at)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS password_resets (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id BIGINT UNSIGNED NOT NULL,
+ token_hash CHAR(64) NOT NULL UNIQUE, expires_at DATETIME NOT NULL,
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS documents (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, participant_id BIGINT UNSIGNED NOT NULL,
+ original_name VARCHAR(190) NOT NULL, stored_name VARCHAR(64) NOT NULL UNIQUE, mime VARCHAR(100) NOT NULL,
+ size INT UNSIGNED NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY(participant_id) REFERENCES participants(id) ON DELETE RESTRICT
+) ENGINE=InnoDB;

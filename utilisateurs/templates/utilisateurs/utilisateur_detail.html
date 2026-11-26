@@ -3,8 +3,10 @@
 <section class="page-banner">
   <div><span class="eyebrow">{{ compte.get_role_display }}</span><h1>{{ compte.get_full_name|default:compte.username }}</h1><p>@{{ compte.username }} · inscrit le {{ compte.date_joined|date:"d/m/Y" }}</p></div>
   <div class="actions">
-    <a class="btn primary" href="{% url 'utilisateurs:utilisateur_modifier' compte.pk %}">Modifier</a>
-    {% if compte.pk != user.pk %}<a class="btn ghost danger-text" href="{% url 'utilisateurs:utilisateur_supprimer' compte.pk %}">Supprimer</a>{% endif %}
+    {% if peut_gerer %}<a class="btn primary" href="{% url 'utilisateurs:utilisateur_modifier' compte.pk %}">Modifier</a>
+    {% else %}<span class="chip soft">Compte technique protégé</span>{% endif %}
+    {% if peut_gerer and compte.pk != user.pk %}{% if compte.is_active %}<a class="btn outline" href="{% url 'utilisateurs:utilisateur_desactiver' compte.pk %}">Désactiver</a>{% else %}<a class="btn outline" href="{% url 'utilisateurs:utilisateur_reactiver' compte.pk %}">Réactiver</a>{% endif %}
+    <a class="btn ghost danger-text" href="{% url 'utilisateurs:utilisateur_supprimer' compte.pk %}">Supprimer</a>{% endif %}
     <a class="btn ghost" href="{% url 'utilisateurs:utilisateur_liste' %}">← Liste</a>
   </div>
 </section>
