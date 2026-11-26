@@ -1,7 +1,7 @@
 {% extends "list_base.html" %}{% block title %}Programmes{% endblock %}
 {% block heading %}Programmes{% endblock %}
-{% block intro %}Séances, horaires et intervenants de chacun de vos événements.{% endblock %}
-{% block page_actions %}<a class="btn ghost" href="{% url 'programmes:intervenants' %}">Intervenants ({{ nb_intervenants }})</a>{% endblock %}
+{% block intro %}Séances et horaires de chacun de vos événements.{% endblock %}
+{% block page_actions %}{% endblock %}
 {% block filters %}{% include "partials/search_bar.html" with placeholder="Rechercher un événement ou une séance…" %}{% endblock %}
 {% block list %}
 <div class="dash-grid">
@@ -25,7 +25,7 @@
     <div class="panel-head"><h2>Prochaines séances</h2></div>
     <ul class="cal-list" style="margin:0;padding:0;border:0">
     {% for s in prochaines_seances %}
-      <li><a href="{% url 'programmes:seance_modifier' s.pk %}"><span class="cal-date">{{ s.debut|date:"M" }}<b>{{ s.debut|date:"d" }}</b></span><span><b>{{ s.titre }}</b><small>{{ s.debut|date:"H:i" }}–{{ s.fin|date:"H:i" }} · {{ s.evenement.titre }}</small></span></a></li>
+      <li><a href="{{ s.evenement.get_absolute_url }}"><span class="cal-date">{{ s.date|date:"M" }}<b>{{ s.date|date:"d" }}</b></span><span><b>{{ s.titre }}</b><small>{{ s.date|date:"d/m/Y H:i" }} · {{ s.evenement.titre }}</small></span></a></li>
     {% empty %}<li class="muted">Aucune séance à venir.</li>{% endfor %}
     </ul>
   </section>

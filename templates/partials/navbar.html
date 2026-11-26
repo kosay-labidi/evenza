@@ -39,7 +39,7 @@
             <a href="{% url 'core:dashboard' %}">Vue d'ensemble</a>
             <a href="{% url 'participants:mes_inscriptions' %}">Mes billets</a>
             <a href="{% url 'utilisateurs:profil' %}">Mon profil</a>
-            {% if nav_espace.principale|length > 1 %}<hr>{% for m in nav_espace.principale %}{% if m.cle != "apercu" %}<a href="{% url m.url_name %}">{{ m.label }}</a>{% endif %}{% endfor %}{% endif %}
+            {% if nav_espace.principale|length > 1 %}<hr>{% for m in nav_espace.principale %}{% if m.cle != "apercu" and m.cle != "programmes" %}<a href="{% url m.url_name %}">{{ m.label }}</a>{% endif %}{% endfor %}{% endif %}
             {% if user.est_admin %}<a href="{% url 'admin:index' %}">Administration</a>{% endif %}
             <hr>
             <form method="post" action="{% url 'utilisateurs:logout' %}">{% csrf_token %}<button type="submit">Déconnexion</button></form>

@@ -4,8 +4,8 @@
 <details class="panel choix-evt" style="margin-bottom:22px">
   <summary class="panel-head" style="cursor:pointer;margin:0"><h2 style="font-size:22px">{{ titre|default:"Pour un événement" }}</h2><span class="muted small">{{ evenements_choix|length }} événement(s)</span></summary>
   <div class="table-wrap flat" style="margin-top:16px"><table class="table"><tbody>
-  {% for e in evenements_choix %}<tr><td><a href="{{ e.get_absolute_url }}">{{ e.titre }}</a></td><td>{{ e.date_debut|date:"d/m/Y" }}</td><td><span class="badge {{ e.statut|lower }}">{{ e.get_statut_display }}</span></td>
-    <td class="row-actions"><a class="btn ghost sm" href="{% url url_action e.pk %}">{{ bouton|default:"Choisir" }}</a></td></tr>{% endfor %}
+  {% for e in evenements_choix %}<tr><td><a href="{{ e.get_absolute_url }}?sans_programmes=1">{{ e.titre }}</a></td><td>{{ e.date_debut|date:"d/m/Y" }}</td><td><span class="badge {{ e.statut|lower }}">{{ e.get_statut_display }}</span></td>
+    <td class="row-actions"><a class="btn ghost sm" href="{% url url_action e.pk %}?sans_programmes=1">{{ bouton|default:"Choisir" }}</a></td></tr>{% endfor %}
   </tbody></table></div>
 </details>
 {% endif %}

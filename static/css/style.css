@@ -641,3 +641,32 @@ html.film-on,html.film-on body{overflow:hidden}
 /* les libellés masqués restent dans leur conteneur défilant */
 .table-wrap,.table th,.table td{position:relative}
 .sr-only{top:0;left:0}
+
+/* Programme : axe borné par les dates de l'événement, fond blanc. */
+.programme-filters{display:flex;align-items:end;gap:14px;flex-wrap:wrap;margin:18px 0 0;padding:0;background:transparent;border:0}
+.programme-filters label,.programme-modal label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--color-text-muted)}
+.programme-filters input,.programme-modal input,.programme-modal textarea{font:inherit;border:1px solid var(--color-border-strong);padding:8px;background:transparent;color:inherit}
+.programme-filters input{background:#fff}
+.programme-filters .btn.ghost{background:#fff}
+.programme-filters #programme-create{margin-left:auto}
+.form-error{color:#b42318;font-size:13px;margin:5px 0}
+.programme-timeline-viewport{overflow-x:auto;background:#fff;padding:28px 24px 24px;margin-top:18px;margin-bottom:24px;border:1px solid var(--color-border)}
+.programme-timeline-track{position:relative;min-width:100%;width:max-content;background:#fff;padding-bottom:24px}
+.programme-axis{position:absolute;z-index:1;left:0;right:0;top:84px;display:flex;justify-content:space-between;color:var(--color-text-muted);font-size:12px;white-space:nowrap}
+.programme-axis span:first-child{text-align:left}.programme-axis span:last-child{text-align:right}
+.programme-timeline{position:relative;list-style:none;padding:0 clamp(84px,9vw,112px);margin:0;display:flex;gap:0;width:max-content;box-sizing:border-box}
+.programme-timeline::before{content:"";position:absolute;z-index:0;left:0;right:0;top:62px;border-top:1px solid var(--color-primary)}
+.programme-timeline-track::before,.programme-timeline-track::after{content:"";position:absolute;z-index:1;top:55px;width:1px;height:15px;background:var(--color-primary)}
+.programme-timeline-track::before{left:0}.programme-timeline-track::after{right:0}
+.programme-item{position:relative;flex:0 0 220px;width:220px;height:126px;display:flex;justify-content:center;align-items:flex-start;padding:0;text-align:center}
+.programme-item::before{content:"";position:absolute;z-index:1;top:55px;left:50%;width:1px;height:15px;background:var(--color-primary);transform:translateX(-50%)}
+.programme-title,.programme-details{border:0;background:none;padding:0;text-align:left;cursor:pointer}
+.programme-title{position:absolute;top:16px;left:50%;width:min(190px,90%);white-space:normal;text-align:center;transform:translateX(-50%);font-weight:700;color:var(--color-primary);font-size:16px}
+.programme-time{position:absolute;top:78px;left:50%;width:190px;color:var(--color-text-muted);font-size:13px;text-align:center;transform:translateX(-50%)}
+.programme-details{position:absolute;z-index:2;top:40px;left:50%;font-size:12px;text-decoration:underline;color:var(--color-primary);opacity:0;transition:opacity .2s;transform:translateX(-50%);white-space:nowrap;background:#fff}
+.programme-item:hover .programme-details,.programme-item:focus-within .programme-details{opacity:1}
+.programme-export{display:flex;justify-content:flex-end;margin-top:32px}
+.programme-modal{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:rgb(20 12 16 / .42);padding:20px}
+.programme-modal[hidden]{display:none}.programme-modal-inner{position:relative;background:var(--color-background);max-width:480px;width:100%;padding:28px;box-shadow:0 12px 40px rgb(0 0 0 / .2)}
+.programme-modal-close{position:absolute;right:14px;top:10px;border:0;background:none;font-size:24px;cursor:pointer}.programme-modal form{display:grid;gap:12px}.programme-modal form .row-actions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:700px){.programme-filters{align-items:stretch}.programme-filters label{flex:1 1 180px}.programme-filters #programme-create{margin-left:0}.programme-timeline-viewport{padding:22px 16px 18px}.programme-timeline{padding-inline:72px}.programme-item{flex-basis:190px;width:190px}.programme-time{width:170px}.programme-export{margin-top:24px}}

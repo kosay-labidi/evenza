@@ -11,6 +11,11 @@ from .forms import AffectationForm, RessourceForm
 from .models import Affectation, Ressource
 
 
+def _event_return_url(request, evenement):
+    url = evenement.get_absolute_url()
+    return f"{url}?sans_programmes=1" if request.GET.get("sans_programmes") == "1" else url
+
+
 class RessourceListView(OrganisateurRequiredMixin, ListView):
     model = Ressource
 
@@ -42,7 +47,7 @@ class AffectationCreateView(ProprietaireEvenementMixin, CreateView):
 
     def get_success_url(self):
         messages.success(self.request, "Ressource affectée sans conflit.")
-        return self.object.evenement.get_absolute_url()
+        return _event_return_url(self.request, self.object.evenement)
 
 
 # ---- Ressource : détail, modification, suppression ----
@@ -119,7 +124,7 @@ class AffectationUpdateView(ProprietaireEvenementMixin, SuccessMessageMixin, Upd
         return super().get_context_data(evenement=self.object.evenement, **kwargs)
 
     def get_success_url(self):
-        return self.object.evenement.get_absolute_url()
+        return _event_return_url(self.request, self.object.evenement)
 
 
 class AffectationDeleteView(ProprietaireEvenementMixin, SuppressionMixin, DeleteView):
@@ -130,4 +135,4 @@ class AffectationDeleteView(ProprietaireEvenementMixin, SuppressionMixin, Delete
         return self.get_object().evenement
 
     def get_success_url(self):
-        return self.object.evenement.get_absolute_url()
+        return _event_return_url(self.request, self.object.evenement)

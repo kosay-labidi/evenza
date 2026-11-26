@@ -8,7 +8,7 @@ from django.utils import timezone
 from evenements.models import Categorie, Evenement, Lieu
 from participants.models import Inscription, TypeBillet
 from prestataires.models import Prestataire, Reservation, Service
-from programmes.models import Intervenant, Seance
+from programmes.models import Seance
 from ressources.models import Affectation, Ressource
 from utilisateurs.models import Utilisateur
 
@@ -25,7 +25,7 @@ class Command(BaseCommand):
     def handle(self, *args, **opts):
         if opts["reset"]:
             for m in (Affectation, Reservation, Inscription, TypeBillet, Seance, Evenement, Ressource, Prestataire, Service,
-                      Intervenant, Lieu, Categorie):
+                      Lieu, Categorie):
                 m.objects.all().delete()
             Utilisateur.objects.exclude(is_superuser=True).delete()
 
@@ -88,18 +88,16 @@ class Command(BaseCommand):
                 TypeBillet.objects.create(evenement=e, nom="Invité", prix=0, description="Sur invitation")
 
         # --- programme ---
-        i1 = Intervenant.objects.get_or_create(nom="Dr. Salma Haddad", defaults={"specialite": "Intelligence artificielle"})[0]
-        i2 = Intervenant.objects.get_or_create(nom="Mehdi Karoui", defaults={"specialite": "Architecture logicielle"})[0]
         if not conf.seances.exists():
             s = conf.date_debut
-            for k, (t, h, iv) in enumerate([("Ouverture", 1, []), ("L'IA générative en entreprise", 2, [i1]),
-                                            ("Architecture MVT et microservices", 2, [i2]), ("Table ronde", 2, [i1, i2])]):
-                se = Seance.objects.create(evenement=conf, titre=t, debut=s, fin=s + timedelta(hours=h), salle="Salle A")
-                se.intervenants.set(iv); s += timedelta(hours=h)
+            for t, h in [("Ouverture", 1), ("L'IA générative en entreprise", 2),
+                         ("Architecture MVT et microservices", 2), ("Table ronde", 2)]:
+                Seance.objects.create(evenement=conf, titre=t, description="Séance du programme", date=s)
+                s += timedelta(hours=h)
         if not festival.seances.exists():
             s = festival.date_debut
             for t in ["Ouverture des portes", "Première partie", "Le show"]:
-                Seance.objects.create(evenement=festival, titre=t, debut=s, fin=s + timedelta(hours=1), salle="Scène")
+                Seance.objects.create(evenement=festival, titre=t, description="Séance du festival", date=s)
                 s += timedelta(hours=1)
 
         # --- prestataires ---
