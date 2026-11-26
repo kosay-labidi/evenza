@@ -1,0 +1,19 @@
+{% extends "detail_base.html" %}{% block title %}Avis{% endblock %}
+{% block eyebrow %}{{ object.inscription.evenement }}{% endblock %}
+{% block heading %}Avis de {{ object.inscription.participant }}{% endblock %}
+{% block intro_wrap %}<p><b>{{ object.note }}/5</b> · publié le {{ object.date|date:"d/m/Y" }}</p>{% endblock %}
+{% block page_actions %}
+  {% if est_auteur %}<a class="btn primary" href="{% url 'participants:avis_modifier' object.pk %}">Modifier</a>{% endif %}
+  <a class="btn ghost danger-text" href="{% url 'participants:avis_supprimer' object.pk %}">Supprimer</a>
+  <a class="btn ghost" href="{% if est_auteur %}{% url 'participants:mes_inscriptions' %}{% else %}{% url 'participants:avis_liste' %}{% endif %}">← Retour</a>
+{% endblock %}
+{% block detail %}
+<div class="panel-head"><h2>Commentaire</h2></div>
+<p>{{ object.commentaire|linebreaksbr|default:"Aucun commentaire." }}</p>
+<ul class="tlist">
+  <li><span class="muted">Événement</span><b><a href="{{ object.inscription.evenement.get_absolute_url }}">{{ object.inscription.evenement.titre }}</a></b></li>
+  <li><span class="muted">Participant</span><b>{{ object.inscription.participant }}</b></li>
+  <li><span class="muted">Billet</span><b>{% if object.inscription.type_billet %}{{ object.inscription.type_billet.nom }}{% else %}Entrée{% endif %} × {{ object.inscription.quantite }}</b></li>
+  <li><span class="muted">Note</span><b>{{ object.note }}/5</b></li>
+</ul>
+{% endblock %}

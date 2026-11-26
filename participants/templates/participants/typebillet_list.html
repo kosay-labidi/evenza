@@ -1,0 +1,29 @@
+{% extends "list_base.html" %}{% block title %}Types de billets{% endblock %}
+{% block heading %}Types de billets{% endblock %}
+{% block intro %}Catégories de billets de vos événements : prix, quota, billets vendus et restants.{% endblock %}
+{% block kpis %}{% include "partials/choix_evenement.html" with url_action="participants:type_creer" titre="Ajouter un type de billet" bouton="+ Billet" %}{% endblock %}
+{% block filters %}
+<form class="filters" method="get" role="search" style="grid-template-columns:1.6fr 1fr auto auto">
+  <input type="search" name="q" value="{{ q }}" placeholder="Type de billet ou événement…" aria-label="Rechercher un type de billet">
+  <select name="evenement" aria-label="Événement"><option value="">Tous les événements</option>{% for e in evenements_choix %}<option value="{{ e.pk }}" {% if evenement_filtre == e.pk %}selected{% endif %}>{{ e.titre }}</option>{% endfor %}</select>
+  <button class="btn primary sm" type="submit">Filtrer</button>
+  {% if q or evenement_filtre %}<a class="btn ghost sm" href="{{ request.path }}">Effacer</a>{% endif %}
+</form>
+{% endblock %}
+{% block list %}
+{% if object_list %}
+<div class="table-wrap"><table class="table"><thead><tr><th>Type</th><th>Événement</th><th>Prix</th><th>Quota</th><th>Vendus</th><th>Restants</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
+{% for t in object_list %}<tr>
+  <td><a href="{% url 'participants:typebillet_detail' t.pk %}"><b>{{ t.nom }}</b></a>{% if t.description %}<br><small class="muted">{{ t.description }}</small>{% endif %}</td>
+  <td><a href="{{ t.evenement.get_absolute_url }}">{{ t.evenement.titre }}</a></td>
+  <td>{% if t.prix %}{{ t.prix|floatformat:2 }} DT{% else %}Gratuit{% endif %}</td>
+  <td>{% if t.quota is None %}Illimité{% else %}{{ t.quota }}{% endif %}</td>
+  <td>{{ t.nb_vendus }}</td>
+  <td>{% if t.reste is None %}—{% else %}{{ t.reste }}{% endif %}</td>
+  <td>{% url 'participants:typebillet_detail' t.pk as u_voir %}{% url 'participants:typebillet_modifier' t.pk as u_mod %}{% url 'participants:typebillet_supprimer' t.pk as u_sup %}{% include "partials/crud_actions.html" with voir=u_voir modifier=u_mod supprimer=u_sup %}</td>
+</tr>{% endfor %}
+</tbody></table></div>
+{% else %}
+  {% include "partials/empty_state.html" with icone="billet" titre="Aucun type de billet" texte="Ajoutez des types de billets (Standard, VIP, Étudiant…) depuis le sélecteur ci-dessus." %}
+{% endif %}
+{% endblock %}

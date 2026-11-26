@@ -14,6 +14,7 @@
         <div>TOTAL<b>{% if object.montant %}{{ object.montant|floatformat:2 }} DT{% else %}Gratuit{% endif %}</b></div>
       </div>
       <span class="badge {{ object.statut|lower }}">{{ object.get_statut_display }}</span>{% if object.present %} <span class="badge confirmee">Entrée validée</span>{% endif %}
+      {% with p=object.position_attente %}{% if p %}<p class="muted">{% if object.participant == user %}Vous êtes{% else %}Position :{% endif %} {{ p }}{% if p == 1 %}er{% else %}e{% endif %} sur la liste d'attente</p>{% endif %}{% endwith %}
     </div>
     <div class="t-stub"><div id="qr" data-code="{{ object.code_billet }}"></div><code>{{ object.code_court }}</code></div>
   </div>

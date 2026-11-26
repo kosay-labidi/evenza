@@ -1,0 +1,5 @@
+{% extends "confirm_base.html" %}{% block title %}Supprimer un avis{% endblock %}
+{% block details %}
+<p class="muted">{{ object.inscription.evenement }} · {{ object.inscription.participant }} · {{ object.note }}/5</p>
+{% if object.commentaire %}<blockquote>{{ object.commentaire }}</blockquote>{% endif %}
+{% endblock %}

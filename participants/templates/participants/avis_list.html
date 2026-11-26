@@ -1,0 +1,34 @@
+{% extends "list_base.html" %}{% block title %}Avis{% endblock %}
+{% block heading %}Avis{% endblock %}
+{% block intro %}Notes et commentaires laissés par les participants sur vos événements. Vous pouvez supprimer un avis inapproprié.{% endblock %}
+{% block kpis %}
+<div class="kpi-grid stagger">
+  <div class="kpi"><span class="kpi-ico">{% include "partials/icon.html" with nom="participants" taille=22 %}</span><b>{{ paginator.count }}</b><span>Avis</span></div>
+  <div class="kpi"><span class="kpi-ico">{% include "partials/icon.html" with nom="prestataires" taille=22 %}</span><b>{% if moyenne %}{{ moyenne|floatformat:1 }}/5{% else %}—{% endif %}</b><span>Note moyenne</span></div>
+</div>
+{% endblock %}
+{% block filters %}
+<form class="filters" method="get" role="search" style="grid-template-columns:1.6fr 1fr 1fr auto auto">
+  <input type="search" name="q" value="{{ q }}" placeholder="Commentaire, participant ou événement…" aria-label="Rechercher un avis">
+  <select name="evenement" aria-label="Événement"><option value="">Tous les événements</option>{% for e in evenements_choix %}<option value="{{ e.pk }}" {% if evenement_filtre == e.pk %}selected{% endif %}>{{ e.titre }}</option>{% endfor %}</select>
+  <select name="note" aria-label="Note"><option value="">Toutes les notes</option>{% for n in notes %}<option value="{{ n }}" {% if note_filtre == n %}selected{% endif %}>{{ n }}/5</option>{% endfor %}</select>
+  <button class="btn primary sm" type="submit">Filtrer</button>
+  {% if q or evenement_filtre or note_filtre %}<a class="btn ghost sm" href="{{ request.path }}">Effacer</a>{% endif %}
+</form>
+{% endblock %}
+{% block list %}
+{% if object_list %}
+<div class="table-wrap"><table class="table"><thead><tr><th>Événement</th><th>Participant</th><th>Note</th><th>Commentaire</th><th>Date</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
+{% for a in object_list %}<tr>
+  <td><a href="{{ a.inscription.evenement.get_absolute_url }}">{{ a.inscription.evenement.titre }}</a></td>
+  <td><a href="{% url 'participants:inscription_detail' a.inscription_id %}">{{ a.inscription.participant }}</a></td>
+  <td><b>{{ a.note }}/5</b></td>
+  <td>{{ a.commentaire|default:"—"|truncatechars:120 }}</td>
+  <td>{{ a.date|date:"d/m/Y" }}</td>
+  <td>{% url 'participants:avis_detail' a.pk as u_voir %}{% url 'participants:avis_supprimer' a.pk as u_sup %}{% include "partials/crud_actions.html" with voir=u_voir supprimer=u_sup %}</td>
+</tr>{% endfor %}
+</tbody></table></div>
+{% else %}
+  {% include "partials/empty_state.html" with icone="prestataires" titre="Aucun avis" texte="Les avis apparaîtront ici après vos événements." %}
+{% endif %}
+{% endblock %}

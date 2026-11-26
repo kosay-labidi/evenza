@@ -1,2 +1,2 @@
 {% extends "form_base.html" %}{% block title %}Type de billet{% endblock %}
-{% block eyebrow %}{{ evenement }}{% endblock %}{% block heading %}Nouveau type de billet{% endblock %}{% block cancel %}{{ evenement.get_absolute_url }}{% endblock %}
+{% block eyebrow %}{{ evenement }}{% endblock %}{% block heading %}{% if object %}Modifier « {{ object.nom }} »{% else %}Nouveau type de billet{% endif %}{% endblock %}{% block cancel %}{% if object %}{% url 'participants:typebillet_liste' %}{% else %}{{ evenement.get_absolute_url }}{% endif %}{% endblock %}

@@ -1,9 +1,0 @@
-{% extends "app_base.html" %}{% block title %}Participants{% endblock %}
-{% block content %}
-<div class="sec-head" style="margin-top:28px"><div><span class="eyebrow">{{ evenement }}</span><h1>Participants</h1></div><a class="btn primary" href="{% url 'participants:checkin' evenement.pk %}">Check-in</a></div>
-<div class="table-wrap"><table class="table"><thead><tr><th>Participant</th><th>Billet</th><th>Inscrit le</th><th>Statut</th><th>Code</th><th>Présent</th></tr></thead><tbody>
-{% for i in object_list %}<tr><td>{{ i.participant }}</td><td>{% if i.type_billet %}{{ i.type_billet.nom }}{% else %}Entrée{% endif %} × {{ i.quantite }}</td><td>{{ i.date_inscription|date:"d/m/Y H:i" }}</td><td><span class="badge {{ i.statut|lower }}">{{ i.get_statut_display }}</span></td><td><code>{{ i.code_court }}</code></td><td>{{ i.present|yesno:"✓,—" }}</td></tr>
-{% empty %}<tr><td colspan="6" class="muted">Aucun inscrit.</td></tr>{% endfor %}
-</tbody></table></div>
-<p style="margin-top:20px"><a href="{{ evenement.get_absolute_url }}">← Retour à l'événement</a></p>
-{% endblock %}

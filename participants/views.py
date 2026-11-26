@@ -1,20 +1,40 @@
+import re
+
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.db.models import Count, Q, Sum
+from django.db.models import Avg, Count, Q, Sum
+from django.db.models.functions import Coalesce
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
-from django.views.generic import CreateView, DetailView, FormView, ListView
+from django.urls import reverse_lazy
+from django.views.generic import CreateView, DeleteView, DetailView, FormView, ListView, UpdateView
 
-from core.mixins import ModuleRequiredMixin, ProprietaireEvenementMixin
+from core.mixins import ModuleRequiredMixin, ProprietaireEvenementMixin, SuppressionMixin
 from core.permissions import evenements_geres
 from evenements.models import Evenement
 
-from .forms import AvisForm, CheckinForm, ReservationForm, TypeBilletForm
+from .forms import AvisForm, CheckinForm, ModificationReservationForm, ReservationForm, TypeBilletForm
 from .models import Avis, Inscription, TypeBillet
+
+
+def _entier(valeur):
+    """Convertit un paramètre GET en entier, ou None s'il est absent ou invalide."""
+    try:
+        return int(valeur)
+    except (TypeError, ValueError):
+        return None
+
+
+def _filtres(request):
+    """Paramètres GET sans « page » : conservés dans les liens de pagination (voir partials/pagination.html)."""
+    params = request.GET.copy()
+    params.pop("page", None)
+    return params.urlencode()
 
 
 class ParticipantsAccueilView(ModuleRequiredMixin, ListView):
@@ -72,12 +92,35 @@ class InscrireView(LoginRequiredMixin, View):
 
 
 class AnnulerInscriptionView(LoginRequiredMixin, View):
-    def post(self, request, pk):
-        insc = get_object_or_404(Inscription, pk=pk, participant=request.user)
+    """Annulation par le participant : GET = page de confirmation, POST = annulation (toujours via Inscription.annuler(),
+    qui passe la réservation en « Annulée » et promeut la liste d'attente ; la ligne n'est pas supprimée)."""
+    template_name = "participants/inscription_confirm_annuler.html"
+
+    def get_inscription(self, request, pk):
+        return get_object_or_404(Inscription.objects.select_related("evenement", "type_billet"), pk=pk,
+                                 participant=request.user)
+
+    def refus(self, insc):
+        """(niveau, message) si l'annulation est impossible, sinon None."""
         if insc.statut == Inscription.Statut.ANNULEE:
-            messages.info(request, "Cette inscription est déjà annulée.")
-        elif insc.evenement.date_debut <= timezone.now():
-            messages.error(request, "L'événement a déjà commencé : la réservation ne peut plus être annulée.")
+            return messages.info, "Cette inscription est déjà annulée."
+        if insc.evenement.date_debut <= timezone.now():
+            return messages.error, "L'événement a déjà commencé : la réservation ne peut plus être annulée."
+        return None
+
+    def get(self, request, pk):
+        insc = self.get_inscription(request, pk)
+        refus = self.refus(insc)
+        if refus:
+            refus[0](request, refus[1])
+            return redirect("participants:mes_inscriptions")
+        return render(request, self.template_name, {"inscription": insc, "evenement": insc.evenement})
+
+    def post(self, request, pk):
+        insc = self.get_inscription(request, pk)
+        refus = self.refus(insc)
+        if refus:
+            refus[0](request, refus[1])
         else:
             insc.annuler()
             messages.info(request, "Inscription annulée.")
@@ -88,7 +131,8 @@ class MesInscriptionsView(LoginRequiredMixin, ListView):
     template_name = "participants/mes_inscriptions.html"
 
     def get_queryset(self):
-        return Inscription.objects.filter(participant=self.request.user).select_related("evenement", "evenement__lieu")
+        return (Inscription.objects.filter(participant=self.request.user)
+                .select_related("evenement", "evenement__lieu", "avis"))
 
 
 class BilletView(LoginRequiredMixin, DetailView):
@@ -110,17 +154,76 @@ class BilletView(LoginRequiredMixin, DetailView):
         return qs if u.est_admin else qs.filter(participant=u) | qs.filter(evenement__organisateur=u)
 
 
-class ParticipantsEvenementView(ProprietaireEvenementMixin, ListView):
-    template_name = "participants/liste_participants.html"
+class InscriptionFiltresMixin:
+    """Liste d'inscriptions pour l'organisateur : filtre par statut, recherche et pagination.
+    Les sous-classes fournissent ``base_queryset()`` (déjà limité aux événements que l'utilisateur gère)."""
+    template_name = "participants/inscription_list.html"
+    paginate_by = 15
 
-    def get_evenement(self):
-        return get_object_or_404(Evenement, pk=self.kwargs["evenement_pk"])
+    def base_queryset(self):
+        raise NotImplementedError
 
     def get_queryset(self):
-        return self.get_evenement().inscriptions.select_related("participant")
+        qs = self.base_queryset().select_related("participant", "evenement", "type_billet").order_by("-date_inscription", "-pk")
+        statut = self.request.GET.get("statut")
+        if statut in Inscription.Statut.values:
+            qs = qs.filter(statut=statut)
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            cond = (Q(participant__username__icontains=q) | Q(participant__first_name__icontains=q)
+                    | Q(participant__last_name__icontains=q) | Q(participant__email__icontains=q)
+                    | Q(evenement__titre__icontains=q))
+            code = re.sub(r"[\s-]", "", q).lower()
+            if re.fullmatch(r"[0-9a-f]{6,32}", code):                 # recherche aussi par début de code de billet
+                cond |= Q(code_billet__startswith=code)
+            qs = qs.filter(cond)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(q=self.request.GET.get("q", ""), statut=self.request.GET.get("statut", ""),
+                   statuts=Inscription.Statut.choices, filtres=_filtres(self.request))
+        return ctx
+
+
+class InscriptionListView(ModuleRequiredMixin, InscriptionFiltresMixin, ListView):
+    """Liste globale des inscriptions des événements gérés : filtre par événement et par statut."""
+    module = "participants"
+
+    def base_queryset(self):
+        qs = Inscription.objects.filter(evenement__in=evenements_geres(self.request.user))
+        evenement = _entier(self.request.GET.get("evenement"))
+        return qs.filter(evenement_id=evenement) if evenement else qs
+
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(evenement_filtre=_entier(self.request.GET.get("evenement")),
+                                        evenements_choix=evenements_geres(self.request.user).order_by("-date_debut"),
+                                        **kwargs)
+
+
+class ParticipantsEvenementView(ProprietaireEvenementMixin, InscriptionFiltresMixin, ListView):
+    """Inscrits d'un événement (même gabarit que la liste globale, événement fixé)."""
+
+    def get_evenement(self):
+        if not hasattr(self, "_evenement"):
+            self._evenement = get_object_or_404(Evenement, pk=self.kwargs["evenement_pk"])
+        return self._evenement
+
+    def base_queryset(self):
+        return self.get_evenement().inscriptions.all()
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(evenement=self.get_evenement(), **kwargs)
+
+
+class InscriptionDetailView(ModuleRequiredMixin, DetailView):
+    """Détail d'une inscription pour l'organisateur de l'événement (ou l'admin)."""
+    module = "participants"
+    template_name = "participants/inscription_detail.html"
+
+    def get_queryset(self):
+        return (Inscription.objects.filter(evenement__in=evenements_geres(self.request.user))
+                .select_related("participant", "evenement", "evenement__lieu", "type_billet"))
 
 
 class CheckinView(ProprietaireEvenementMixin, FormView):
@@ -245,3 +348,242 @@ class TypeBilletCreateView(ProprietaireEvenementMixin, CreateView):
 
     def get_success_url(self):
         return self.object.evenement.get_absolute_url()
+
+
+class TypeBilletListView(ModuleRequiredMixin, ListView):
+    """Liste globale des types de billets des événements gérés : filtre par événement, recherche, pagination."""
+    module = "participants"
+    template_name = "participants/typebillet_list.html"
+    paginate_by = 12
+
+    def get_queryset(self):
+        qs = (TypeBillet.objects.filter(evenement__in=evenements_geres(self.request.user))
+              .select_related("evenement")
+              .annotate(nb_vendus=Coalesce(Sum("inscriptions__quantite",
+                                               filter=Q(inscriptions__statut=Inscription.Statut.CONFIRMEE)), 0))
+              .order_by("-evenement__date_debut", "prix", "pk"))
+        evenement = _entier(self.request.GET.get("evenement"))
+        if evenement:
+            qs = qs.filter(evenement_id=evenement)
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(Q(nom__icontains=q) | Q(evenement__titre__icontains=q))
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        for t in ctx["object_list"]:                       # places restantes : None = quota illimité
+            t.reste = None if t.quota is None else max(0, t.quota - t.nb_vendus)
+        ctx.update(q=self.request.GET.get("q", ""), filtres=_filtres(self.request),
+                   evenement_filtre=_entier(self.request.GET.get("evenement")),
+                   evenements_choix=evenements_geres(self.request.user).order_by("-date_debut"))
+        return ctx
+
+
+class TypeBilletUpdateView(ProprietaireEvenementMixin, SuccessMessageMixin, UpdateView):
+    """Modification d'un type de billet (le quota ne peut pas passer sous le nombre de billets vendus : voir le formulaire)."""
+    model = TypeBillet
+    form_class = TypeBilletForm
+    success_message = "« %(nom)s » a été modifié."
+    success_url = reverse_lazy("participants:typebillet_liste")
+
+    def get_evenement(self):
+        return self.get_object().evenement
+
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(evenement=self.object.evenement, **kwargs)
+
+
+class TypeBilletDeleteView(ProprietaireEvenementMixin, SuppressionMixin, DeleteView):
+    """Suppression avec confirmation. Si des inscriptions utilisent ce type (FK en PROTECT), SuppressionMixin
+    refuse avec un message clair au lieu d'une erreur 500."""
+    model = TypeBillet
+    success_url = reverse_lazy("participants:typebillet_liste")
+
+    def get_evenement(self):
+        return self.get_object().evenement
+
+
+class InscriptionActionView(ModuleRequiredMixin, View):
+    """Base des actions POST de l'organisateur sur une inscription (jamais de GET, jamais de suppression physique).
+
+    L'inscription doit appartenir à un événement géré par l'utilisateur (l'admin gère tout) : sinon 404.
+    """
+    module = "participants"
+    http_method_names = ["post"]
+
+    def post(self, request, pk):
+        insc = get_object_or_404(Inscription.objects.filter(evenement__in=evenements_geres(request.user))
+                                 .select_related("participant", "evenement"), pk=pk)
+        self.agir(request, insc)
+        return redirect("participants:inscription_detail", pk=insc.pk)
+
+    def agir(self, request, insc):
+        raise NotImplementedError
+
+
+class InscriptionAnnulerGestionView(InscriptionActionView):
+    """Annulation par l'organisateur : passe obligatoirement par Inscription.annuler() (statut ANNULEE, places
+    libérées, liste d'attente promue). La ligne n'est pas supprimée."""
+
+    def agir(self, request, insc):
+        if insc.statut == Inscription.Statut.ANNULEE:
+            messages.info(request, "Cette inscription est déjà annulée.")
+        elif insc.present:
+            messages.error(request, f"{insc.participant} est déjà entré : annulez d'abord son check-in.")
+        else:
+            insc.annuler()
+            messages.success(request, f"Inscription de {insc.participant} annulée. Les places libérées "
+                                      "ont été proposées à la liste d'attente.")
+
+
+class InscriptionCheckinAnnulerView(InscriptionActionView):
+    """Annule un check-in (entrée validée par erreur)."""
+
+    def agir(self, request, insc):
+        # Mise à jour conditionnelle, comme le check-in : pas de double traitement en cas de requêtes simultanées.
+        if Inscription.objects.filter(pk=insc.pk, present=True).update(present=False):
+            messages.success(request, f"Entrée de {insc.participant} annulée.")
+        else:
+            messages.info(request, f"{insc.participant} n'est pas marqué comme présent.")
+
+
+class AvisListView(ModuleRequiredMixin, ListView):
+    """Avis des événements gérés (organisateur : les siens, admin : tous) : filtre par événement et par note, recherche."""
+    module = "participants"
+    template_name = "participants/avis_list.html"
+    paginate_by = 12
+
+    def get_queryset(self):
+        qs = (Avis.objects.filter(inscription__evenement__in=evenements_geres(self.request.user))
+              .select_related("inscription__participant", "inscription__evenement").order_by("-date", "-pk"))
+        evenement = _entier(self.request.GET.get("evenement"))
+        if evenement:
+            qs = qs.filter(inscription__evenement_id=evenement)
+        note = _entier(self.request.GET.get("note"))
+        if note in range(1, 6):
+            qs = qs.filter(note=note)
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(Q(commentaire__icontains=q) | Q(inscription__participant__username__icontains=q)
+                           | Q(inscription__participant__first_name__icontains=q)
+                           | Q(inscription__participant__last_name__icontains=q)
+                           | Q(inscription__evenement__titre__icontains=q))
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        moyenne = self.object_list.aggregate(m=Avg("note"))["m"]
+        ctx.update(q=self.request.GET.get("q", ""), filtres=_filtres(self.request), moyenne=moyenne,
+                   evenement_filtre=_entier(self.request.GET.get("evenement")), note_filtre=_entier(self.request.GET.get("note")),
+                   notes=range(5, 0, -1), evenements_choix=evenements_geres(self.request.user).order_by("-date_debut"))
+        return ctx
+
+
+class AvisUpdateView(LoginRequiredMixin, UserPassesTestMixin, SuccessMessageMixin, UpdateView):
+    """Modification de son propre avis (réservée à l'auteur)."""
+    model = Avis
+    form_class = AvisForm
+    success_message = "Votre avis a été modifié."
+    success_url = reverse_lazy("participants:mes_inscriptions")
+
+    def test_func(self):
+        return self.get_object().inscription.participant_id == self.request.user.id
+
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(inscription=self.object.inscription, **kwargs)
+
+
+class AvisAccesMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Accès à un avis : son auteur, l'organisateur de l'événement concerné, ou l'admin (403 pour les autres)."""
+
+    def test_func(self):
+        avis, u = self.get_object(), self.request.user
+        return avis.inscription.participant_id == u.id or evenements_geres(u).filter(pk=avis.inscription.evenement_id).exists()
+
+
+class AvisDetailView(AvisAccesMixin, DetailView):
+    model = Avis
+    template_name = "participants/avis_detail.html"
+
+    def get_queryset(self):
+        return Avis.objects.select_related("inscription__participant", "inscription__evenement", "inscription__type_billet")
+
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(est_auteur=self.object.inscription.participant_id == self.request.user.id, **kwargs)
+
+
+class AvisDeleteView(AvisAccesMixin, SuppressionMixin, DeleteView):
+    """Suppression d'un avis : par son auteur, ou par modération (organisateur de l'événement, admin)."""
+    model = Avis
+    success_message = "L'avis « {objet} » a été supprimé."
+
+    def get_success_url(self):
+        if self.object.inscription.participant_id == self.request.user.id:
+            return reverse_lazy("participants:mes_inscriptions")
+        return reverse_lazy("participants:avis_liste")
+
+
+class TypeBilletDetailView(ProprietaireEvenementMixin, DetailView):
+    """Détail d'un type de billet : prix, quota, vendus / restants et réservations qui l'utilisent."""
+    model = TypeBillet
+    template_name = "participants/typebillet_detail.html"
+
+    def get_queryset(self):
+        return TypeBillet.objects.select_related("evenement")
+
+    def get_evenement(self):
+        return self.get_object().evenement
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["inscriptions"] = self.object.inscriptions.select_related("participant").order_by("-date_inscription")
+        return ctx
+
+
+class ModifierInscriptionView(LoginRequiredMixin, FormView):
+    """Le participant modifie SA réservation (type de billet, nombre de places) avant le début de l'événement.
+    Toute la règle métier (places, quotas, montant, liste d'attente) est dans ``Inscription.modifier()``."""
+    form_class = ModificationReservationForm
+    template_name = "participants/reservation_modifier.html"
+
+    def get_inscription(self):
+        if not hasattr(self, "_inscription"):
+            self._inscription = get_object_or_404(
+                Inscription.objects.select_related("evenement", "type_billet"), pk=self.kwargs["pk"],
+                participant=self.request.user)                    # jamais la réservation d'un autre
+        return self._inscription
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            motif = self.get_inscription().motif_refus_modification()
+            if motif:
+                messages.error(request, motif)
+                return redirect("participants:mes_inscriptions")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        return {**super().get_form_kwargs(), "inscription": self.get_inscription()}
+
+    def get_context_data(self, **kwargs):
+        insc = self.get_inscription()
+        return super().get_context_data(inscription=insc, evenement=insc.evenement, **kwargs)
+
+    def form_valid(self, form):
+        insc = self.get_inscription()
+        d = form.cleaned_data
+        avant = (insc.type_billet_id, insc.quantite)
+        try:
+            insc.modifier(d.get("type_billet"), d["quantite"])
+        except ValidationError as err:
+            form.add_error(None, err)
+            return self.form_invalid(form)
+        if (insc.type_billet_id, insc.quantite) == avant:
+            messages.info(self.request, "Aucune modification : votre réservation est inchangée.")
+            return redirect("participants:mes_inscriptions")
+        if insc.statut == Inscription.Statut.ATTENTE:
+            messages.warning(self.request, "Réservation modifiée : elle reste sur la liste d'attente.")
+        else:
+            messages.success(self.request, f"Réservation modifiée : {insc.quantite} place(s), "
+                                           f"total {insc.montant:.2f} DT.")
+        return redirect(insc)

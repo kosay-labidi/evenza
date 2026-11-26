@@ -1,0 +1,13 @@
+{% extends "form_base.html" %}{% block title %}Modifier ma réservation{% endblock %}
+{% block eyebrow %}{{ evenement.titre }} · actuellement {{ inscription.quantite }} × {% if inscription.type_billet %}{{ inscription.type_billet.nom }}{% else %}Entrée{% endif %}{% endblock %}
+{% block heading %}Modifier ma réservation{% endblock %}
+{% block submit %}Enregistrer les modifications{% endblock %}
+{% block cancel %}{% url 'participants:mes_inscriptions' %}{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <p class="muted small">{{ evenement.date_debut|date:"l d F Y · H:i" }} · {{ evenement.lieu }}.
+    Le montant est recalculé (prix du billet × nombre de places). Vous pouvez modifier votre réservation jusqu'au début de l'événement.</p>
+  <p class="small"><b>{{ evenement.places_restantes }}</b> place(s) restante(s) sur {{ evenement.capacite }} · montant actuel : <b>{% if inscription.montant %}{{ inscription.montant|floatformat:2 }} DT{% else %}Gratuit{% endif %}</b>{% if inscription.statut == "ATTENTE" %} · <span class="badge attente">Liste d'attente</span>{% endif %}</p>
+</section>
+{{ block.super }}
+{% endblock %}
