@@ -133,3 +133,27 @@ class CorrectionsEvenementTests(TestCase):
                                    "capacite": 10, "prix": 0})
         self.assertFalse(form.is_valid())
         self.assertIn("date_debut", form.errors)
+
+
+class ScenePageTests(EvenementTests):
+    """Page « Mes événements » (scène 3D) : rendu serveur avec les vraies données."""
+
+    def test_page_organisateur_affiche_evenement_et_chiffres(self):
+        from participants.models import Inscription
+        self.e.publier()
+        Inscription.objects.create(evenement=self.e, participant=self.part, quantite=2, montant=40)
+        self.client.login(username="org", password="Test12345!")
+        r = self.client.get(reverse("evenements:mes_evenements"))
+        self.assertContains(r, "es-card")
+        self.assertContains(r, "Test")
+        self.assertContains(r, 'data-n="2"')      # inscrits
+        self.assertContains(r, "40 DT")           # recettes
+
+    def test_page_sans_evenement(self):
+        Evenement.objects.all().delete()
+        self.client.login(username="org", password="Test12345!")
+        self.assertContains(self.client.get(reverse("evenements:mes_evenements")), "Créez le premier")
+
+    def test_participant_refuse(self):
+        self.client.login(username="part", password="Test12345!")
+        self.assertNotEqual(self.client.get(reverse("evenements:mes_evenements")).status_code, 200)
