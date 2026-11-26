@@ -6,6 +6,12 @@
   <input type="search" name="q" value="{{ q }}" placeholder="Titre, mot-clé…" aria-label="Mot-clé">
   <select name="categorie" aria-label="Catégorie"><option value="">Toutes les catégories</option>{% for c in categories %}<option value="{{ c.pk }}" {% if request.GET.categorie == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>{% endfor %}</select>
   <select name="ville" aria-label="Ville"><option value="">Toute la Tunisie</option>{% for v in villes %}<option {% if request.GET.ville == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+  <select name="statut" aria-label="Statut">
+    <option value="">Publiés</option>
+    <option value="PUBLIE" {% if statut == "PUBLIE" %}selected{% endif %}>Publiés</option>
+    <option value="ANNULE" {% if statut == "ANNULE" %}selected{% endif %}>Annulés</option>
+    <option value="TERMINE" {% if statut == "TERMINE" %}selected{% endif %}>Terminés</option>
+  </select>
   <input type="date" name="date" value="{{ request.GET.date }}" aria-label="À partir du">
   <button class="btn primary sm">Rechercher</button>
 </form>

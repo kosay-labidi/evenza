@@ -12,6 +12,14 @@ class EvenementForm(forms.ModelForm):
         fields = ("titre", "description", "categorie", "lieu", "date_debut", "date_fin", "capacite", "prix", "affiche")
         widgets = {"date_debut": DT, "date_fin": DT, "description": forms.Textarea(attrs={"rows": 4})}
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # La description est obligatoire à la saisie. Le champ modèle reste blank=True
+        # pour ne pas invalider les événements déjà enregistrés sans texte.
+        self.fields["description"].required = True
+        self.fields["prix"].required = True
+        self.fields["capacite"].required = True
+
     def clean_date_debut(self):
         d = self.cleaned_data.get("date_debut")
         # Seulement si la date est saisie ou modifiée : on peut encore éditer un événement en cours.

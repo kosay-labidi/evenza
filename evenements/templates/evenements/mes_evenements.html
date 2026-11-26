@@ -1,9 +1,144 @@
-{% extends "app_base.html" %}{% block title %}Mes événements{% endblock %}
-{% block banner %}{% include "partials/banner.html" with sur_titre="Espace organisateur" titre="Mes événements" texte="Brouillons, événements publiés ou annulés : gérez-les depuis ici." %}{% endblock %}
+{% extends "app_base.html" %}{% load static %}
+{% block title %}Mes événements{% endblock %}
+{% block app_head %}<link rel="stylesheet" href="{% static 'css/events-stage.css' %}">{% endblock %}
+{% block extra_js %}<script src="{% static 'js/events-stage.js' %}" defer></script>{% endblock %}
 {% block content %}
-<div class="sec-head" style="margin-top:0"><h2>Tous mes événements</h2><a class="btn primary" href="{% url 'evenements:creer' %}">+ Nouvel événement</a></div>
-<div class="table-wrap"><table class="table"><thead><tr><th>Titre</th><th>Début</th><th>Lieu</th><th>Places</th><th>Statut</th><th></th></tr></thead><tbody>
-{% for e in object_list %}<tr><td>{{ e.titre }}</td><td>{{ e.date_debut|date:"d/m/Y H:i" }}</td><td>{{ e.lieu }}</td><td>{{ e.nb_inscrits }}/{{ e.capacite }}</td><td><span class="badge {{ e.statut|lower }}">{{ e.get_statut_display }}</span></td><td><a href="{{ e.get_absolute_url }}">Gérer →</a></td></tr>
-{% empty %}<tr><td colspan="6" class="muted">Aucun événement. Créez le premier !</td></tr>{% endfor %}
-</tbody></table></div>
+<section class="es" id="es" aria-label="Mes événements">
+  <div class="es-bg es-bg-a" aria-hidden="true"></div><div class="es-bg es-bg-b" aria-hidden="true"></div>
+  <div class="es-veil" aria-hidden="true"></div><div class="es-spot" aria-hidden="true"></div>
+
+  <div class="es-head">
+    <div class="es-head-copy"><span class="es-eyebrow">Espace organisateur</span><h1>Mes événements</h1>
+      <p class="es-intro">Retrouvez vos événements et consultez leur activité.</p>
+    </div>
+    <a class="btn primary es-create" href="{% url 'evenements:creer' %}">+ Nouvel événement</a>
+  </div>
+
+  {% if object_list %}
+  <div class="es-controls" role="group" aria-label="Filtres et affichage des événements">
+    <div class="es-filter-group">
+      <span class="es-control-label">Statut</span>
+      <div class="es-seg es-filter-seg" id="es-filters" role="group" aria-label="Filtrer par statut" hidden>
+        <button type="button" data-f="ALL" aria-pressed="true">Tous <em></em></button>
+        <button type="button" data-f="PUBLIE" aria-pressed="false">Publiés <em></em></button>
+        <button type="button" data-f="BROUILLON" aria-pressed="false">Brouillons <em></em></button>
+        <button type="button" data-f="ANNULE" aria-pressed="false">Annulés <em></em></button>
+        <button type="button" data-f="ARCH" aria-pressed="false">Archivés <em></em></button>
+      </div>
+    </div>
+    <div class="es-control-actions">
+      <button type="button" class="es-kbtn" id="es-k" hidden aria-label="Rechercher un événement">Rechercher <kbd>Ctrl K</kbd></button>
+      <div class="es-view-group">
+        <span class="es-control-label">Affichage</span>
+        <div class="es-seg" id="es-views" role="group" aria-label="Choisir l’affichage" hidden>
+          <button type="button" data-v="scene" aria-pressed="true">Scène 3D</button>
+          <button type="button" data-v="mos" aria-pressed="false">Mosaïque</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="es-rail" id="es-rail" tabindex="0" role="region" aria-roledescription="carrousel" aria-label="Événements. Utilisez les flèches gauche et droite pour changer de carte.">
+    {% for e in object_list %}
+    <article class="es-card" role="group" aria-roledescription="diapositive" data-i="{{ forloop.counter0 }}" data-st="{{ e.statut }}" data-img="{{ e.image_url }}"
+       data-pk="{{ e.pk }}" data-archived="{% if e.pk in archives_ids %}1{% endif %}" data-title="{{ e.titre }}" data-sub="{{ e.date_debut|date:'j F' }} · {{ e.lieu.ville }}" data-start="{{ e.date_debut|date:'c' }}">
+      <a class="es-card-link" href="{{ e.get_absolute_url }}" aria-label="Sélectionner {{ e.titre }} ou ouvrir sa gestion">
+       <span class="es-tilt"><span class="es-frame"><span class="es-mat"><span class="es-ph" style="background-image:url('{{ e.image_url }}')">
+        <span class="es-chip">{{ e.categorie.nom }}</span>
+        <span class="es-date"><b>{{ e.date_debut|date:"j" }}</b>{{ e.date_debut|date:"M" }}</span>
+        <span class="es-ribbon{% if e.statut == 'ANNULE' or e.places_restantes == 0 %} full{% endif %}">{% if e.statut == "BROUILLON" %}Brouillon{% elif e.statut == "ANNULE" %}Annulé{% elif e.places_restantes == 0 %}Complet{% else %}{{ e.get_statut_display }}{% endif %}</span>
+        <span class="es-cap"><strong>{{ e.titre }}</strong><small>{{ e.lieu.nom }} · {{ e.date_debut|date:"H:i" }}</small></span>
+       </span></span></span><span class="es-glare" aria-hidden="true"></span>
+      </a>
+      <button type="button" class="es-b3" data-open-apercu data-pk="{{ e.pk }}" aria-label="Ouvrir l’aperçu 3D de {{ e.titre }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg><b>Aperçu 3D</b></button>
+    </article>
+    {% endfor %}
+  </div>
+  <div class="es-under">
+    <button class="es-nav l" id="es-prev" type="button" aria-label="Événement précédent" hidden>‹</button>
+    <span class="es-count" id="es-cnt" role="status" aria-live="polite"></span>
+    <div class="es-dots" id="es-dots" role="group" aria-label="Choisir un événement"></div>
+    <span class="es-hint">Utilisez les flèches ou faites glisser</span>
+    <button class="es-nav r" id="es-next" type="button" aria-label="Événement suivant" hidden>›</button>
+  </div>
+
+  <div class="es-details" id="es-details">
+    {% for e in object_list %}
+    <article class="es-panel" data-i="{{ forloop.counter0 }}" data-st="{{ e.statut }}" data-start="{{ e.date_debut|date:'c' }}" hidden>
+      <div class="es-id">
+        <span class="es-eyebrow">{{ e.categorie.nom }} · <span class="badge {{ e.statut|lower }}">{{ e.get_statut_display }}</span></span>
+        <h2>{{ e.titre }}</h2>
+        <p class="es-meta">{{ e.date_debut|date:"l j F Y"|capfirst }} · {{ e.date_debut|date:"H:i" }} → {{ e.date_fin|date:"H:i" }}</p>
+        <p class="es-meta">{{ e.lieu.nom }}, {{ e.lieu.ville }}</p>
+        {% if e.statut == "PUBLIE" %}<div class="es-cd" data-cd aria-label="Compte à rebours"><div><b>0</b><small>jours</small></div><div><b>00</b><small>heures</small></div><div><b>00</b><small>min</small></div><div><b>00</b><small>sec</small></div></div>{% endif %}
+        <div class="es-acts">
+          <a class="btn es-gold" href="{{ e.get_absolute_url }}">Gérer l'événement</a>
+          <button type="button" class="btn es-ghost" data-open-apercu data-pk="{{ e.pk }}">Aperçu 3D</button>
+          <a class="btn es-ghost" href="{% url 'participants:liste' e.pk %}">Participants ({{ e.inscrits_n }})</a>
+          {% if e.statut == "PUBLIE" %}<a class="btn es-ghost" href="{% url 'participants:checkin' e.pk %}">Check-in</a>{% endif %}
+          {% if e.statut == "BROUILLON" %}<form method="post" action="{% url 'evenements:publier' e.pk %}">{% csrf_token %}<button class="btn es-ghost" type="submit">Publier</button></form>{% endif %}
+        </div>
+      </div>
+      <div class="es-info">
+        <div class="es-tabs" role="tablist" aria-label="Informations sur {{ e.titre }}">
+          <button type="button" role="tab" id="es-tab-{{ e.pk }}-ov" aria-controls="es-pane-{{ e.pk }}-ov" data-t="ov" aria-selected="true" tabindex="0">Aperçu</button>
+          <button type="button" role="tab" id="es-tab-{{ e.pk }}-prog" aria-controls="es-pane-{{ e.pk }}-prog" data-t="prog" aria-selected="false" tabindex="-1">Programme</button>
+          <button type="button" role="tab" id="es-tab-{{ e.pk }}-tick" aria-controls="es-pane-{{ e.pk }}-tick" data-t="tick" aria-selected="false" tabindex="-1">Billets</button>
+        </div>
+        <div class="es-pane" id="es-pane-{{ e.pk }}-ov" role="tabpanel" aria-labelledby="es-tab-{{ e.pk }}-ov" tabindex="0" data-pane="ov">
+          <div class="es-ov">
+            <div class="es-ring" data-pct="{{ e.taux_remplissage }}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="t" cx="60" cy="60" r="52"/><circle class="v" cx="60" cy="60" r="52"/></svg><div><b>{{ e.taux_remplissage }} %</b><small>rempli</small></div></div>
+            <div class="es-kpis">
+              <div><small>Inscrits</small><b data-n="{{ e.inscrits_n }}">{{ e.inscrits_n }}</b></div>
+              <div><small>Places libres</small><b data-n="{{ e.places_restantes }}">{{ e.places_restantes }}</b></div>
+              <div><small>Recettes</small><b data-n="{{ e.recettes_n|floatformat:0 }}" data-s=" DT">{{ e.recettes_n|floatformat:0 }} DT</b></div>
+              <div><small>Présents</small><b data-n="{{ e.presents_n }}">{{ e.presents_n }}</b></div>
+              <div><small>Capacité</small><b>{{ e.capacite }}</b></div>
+              <div><small>À partir de</small><b>{% if e.prix_min %}{{ e.prix_min|floatformat:"-2" }} DT{% else %}Gratuit{% endif %}</b></div>
+            </div>
+          </div>
+        </div>
+        <div class="es-pane" id="es-pane-{{ e.pk }}-prog" role="tabpanel" aria-labelledby="es-tab-{{ e.pk }}-prog" tabindex="0" data-pane="prog" hidden>
+          {% with s=e.seances.all %}{% if s %}<ul class="es-tl">{% for x in s %}<li><time>{{ x.debut|date:"H:i" }} – {{ x.fin|date:"H:i" }}</time><div><b>{{ x.titre }}</b>{% if x.salle %}<small>{{ x.salle }}</small>{% endif %}</div></li>{% endfor %}</ul>
+          {% else %}<p class="es-none">Aucune séance. <a href="{{ e.get_absolute_url }}">Ajouter le programme</a></p>{% endif %}{% endwith %}
+        </div>
+        <div class="es-pane" id="es-pane-{{ e.pk }}-tick" role="tabpanel" aria-labelledby="es-tab-{{ e.pk }}-tick" tabindex="0" data-pane="tick" hidden>
+          {% with t=e.types_billet.all %}{% if t %}<div class="es-tk">{% for x in t %}<div class="es-tkr"><div><b>{{ x.nom }}</b><small>{% if x.prix %}{{ x.prix|floatformat:"-2" }} DT{% else %}Gratuit{% endif %}</small></div>
+            <div><div class="es-meter"><i style="width:{% if x.quota %}{% widthratio x.vendus_n x.quota 100 %}{% else %}{% widthratio x.vendus_n e.capacite 100 %}{% endif %}%"></i></div><small>{{ x.vendus_n }} vendu{{ x.vendus_n|pluralize }}{% if x.quota %} sur {{ x.quota }}{% endif %}</small></div></div>{% endfor %}</div>
+          {% else %}<p class="es-none">Aucun type de billet défini.</p>{% endif %}{% endwith %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="es-empty"><p>Aucun événement. Créez le premier !</p><a class="btn es-gold" href="{% url 'evenements:creer' %}">+ Nouvel événement</a></div>
+  {% endif %}
+</section>
+
+<div class="es-ap" id="es-ap" hidden role="dialog" aria-modal="true" aria-labelledby="es-ap-t">
+  <input type="hidden" id="es-csrf" value="{{ csrf_token }}">
+  <div class="es-apbox">
+    <div class="es-apv">
+      <div class="es-aph"><div><span class="es-ai" id="es-ai">Aperçu</span><h2 id="es-ap-t"></h2></div><button type="button" class="es-x" id="es-ap-x" aria-label="Fermer">&times;</button></div>
+      <div class="es-scene" id="es-scene" aria-label="Maquette 3D, glisser pour tourner"><div class="es-world" id="es-world"><div class="es-floor" id="es-floor"></div></div><div id="es-pins"></div></div>
+      <div class="es-ctl"><div class="es-seg" id="es-cam"><button type="button" data-c="ens" aria-pressed="true">Vue d'ensemble</button><button type="button" data-c="face" aria-pressed="false">De face</button><button type="button" data-c="top" aria-pressed="false">De dessus</button></div><span class="es-hint">Glisser pour tourner</span></div>
+    </div>
+    <div class="es-aps">
+      <div class="es-sum"><span class="es-eyebrow">En bref</span><p id="es-sum"></p><div class="es-tags" id="es-tags"></div><ul class="es-legend" id="es-legend"></ul></div>
+      <div class="es-soc" id="es-soc">
+        <button type="button" data-k="LIKE" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/></svg><span id="es-likes">0</span></button>
+        <button type="button" data-k="SAVE" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M5 4h14v17l-7-4-7 4z"/></svg>Enregistrer</button>
+        <button type="button" data-k="ARCHIVE" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 7h16v3H4zM6 10v9h12v-9M10 14h4"/></svg>Archiver</button>
+        <button type="button" id="es-share"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 11 7.6-4.5M8.2 13l7.6 4.5"/></svg>Partager</button>
+      </div>
+      <div class="es-tabs" role="tablist"><button type="button" data-s="com" aria-selected="false">Commentaires <em id="es-ncom">0</em></button><button type="button" data-s="room" aria-selected="true">Rooms</button></div>
+      <div class="es-rooms" id="es-rooms"></div>
+      <div class="es-feed" id="es-feed" aria-live="polite"></div>
+      <form class="es-send" id="es-send" autocomplete="off"><input id="es-in" type="text" maxlength="500" aria-label="Votre message" placeholder="Écrire un message…"><button type="submit" aria-label="Envoyer">&rarr;</button></form>
+    </div>
+  </div>
+</div>
+
+<div class="es-cmdk" id="es-cmdk" hidden role="dialog" aria-modal="true" aria-label="Recherche rapide"><div class="es-cbox"><input id="es-cq" type="text" placeholder="Rechercher un événement…" autocomplete="off" aria-label="Recherche rapide"><div class="es-cl" id="es-cl"></div></div></div>
 {% endblock %}
