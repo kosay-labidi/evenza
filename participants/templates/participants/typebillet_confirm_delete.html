@@ -1,0 +1,7 @@
+{% extends "confirm_base.html" %}{% block title %}Supprimer un type de billet{% endblock %}
+{% block details %}
+<p class="muted">{{ object.evenement }} · {% if object.prix %}{{ object.prix|floatformat:2 }} DT{% else %}Gratuit{% endif %}</p>
+{% with n=object.inscriptions.count %}{% if n %}
+<div class="msg warning" style="text-align:left"><span>Ce type est utilisé par <b>{{ n }} inscription{{ n|pluralize }}</b> : la suppression sera refusée tant que ces inscriptions existent (même annulées).</span></div>
+{% endif %}{% endwith %}
+{% endblock %}

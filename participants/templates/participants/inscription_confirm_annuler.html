@@ -1,0 +1,18 @@
+{% extends "form_base.html" %}{% block title %}Annuler ma réservation{% endblock %}
+{% block eyebrow %}{{ evenement.titre }}{% endblock %}
+{% block heading %}Annuler cette réservation ?{% endblock %}
+{% block submit %}Oui, annuler ma réservation{% endblock %}
+{% block cancel %}{% url 'participants:mes_inscriptions' %}{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <p class="lead" style="margin-inline:auto">Vous allez annuler votre réservation pour « {{ evenement.titre }} ».</p>
+  <ul class="tlist">
+    <li><span class="muted">Date</span><b>{{ evenement.date_debut|date:"d/m/Y H:i" }}</b></li>
+    <li><span class="muted">Billet</span><b>{% if inscription.type_billet %}{{ inscription.type_billet.nom }}{% else %}Entrée{% endif %} × {{ inscription.quantite }}</b></li>
+    <li><span class="muted">Montant</span><b>{% if inscription.montant %}{{ inscription.montant|floatformat:2 }} DT{% else %}Gratuit{% endif %}</b></li>
+    <li><span class="muted">Statut</span><b>{{ inscription.get_statut_display }}</b></li>
+  </ul>
+  <div class="msg warning" style="text-align:left"><span>Vos places seront libérées et proposées aux personnes en liste d'attente. Pour de nouveau participer, il faudra réserver à nouveau (sous réserve de places).</span></div>
+</section>
+{{ block.super }}
+{% endblock %}

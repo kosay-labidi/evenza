@@ -51,3 +51,30 @@ class TypeBilletForm(forms.ModelForm):
     class Meta:
         model = TypeBillet
         fields = ("nom", "description", "prix", "quota")
+
+    def clean_quota(self):
+        """Un quota ne peut pas être inférieur au nombre de billets déjà vendus (réservations confirmées)."""
+        quota = self.cleaned_data.get("quota")
+        if quota is not None and self.instance.pk and quota < self.instance.vendus:
+            raise forms.ValidationError(
+                f"{self.instance.vendus} billet(s) sont déjà vendus : le quota ne peut pas être inférieur à ce nombre.")
+        return quota
+
+
+class ModificationReservationForm(forms.Form):
+    """Modification d'une réservation existante par son participant : type de billet et nombre de places.
+    (Formulaire distinct de ``ReservationForm`` : le parcours de réservation n'est pas touché.)"""
+    type_billet = forms.ModelChoiceField(queryset=TypeBillet.objects.none(), empty_label=None, required=False,
+                                         label="Type de billet")
+    quantite = forms.TypedChoiceField(choices=[(i, i) for i in range(1, 11)], coerce=int, label="Nombre de places")
+
+    def __init__(self, *args, inscription, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.inscription = inscription
+        types = inscription.evenement.types_billet.all()
+        self.fields["type_billet"].queryset = types
+        self.fields["type_billet"].required = types.exists()
+        if not types.exists():
+            del self.fields["type_billet"]                   # événement sans types : prix de l'événement
+        if not self.is_bound:
+            self.initial.update(type_billet=inscription.type_billet_id, quantite=inscription.quantite)
