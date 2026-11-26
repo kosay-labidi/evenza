@@ -1,39 +1,72 @@
-"""Composants réutilisables (approche bottom-up)."""
+"""Composants réutilisables (approche bottom-up).
+
+Contrôles d'accès : chaque mixin délègue à une fonction de ``core.permissions`` (aucune règle
+n'est recodée ici). Anonyme → redirection vers la connexion ; connecté sans le droit → 403.
+"""
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.exceptions import ImproperlyConfigured
+
+from . import permissions
 
 
-class RoleRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+class PermissionRequiseMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Base : ``permission`` est une fonction ``(user) -> bool`` de ``core.permissions``."""
+    permission = None
+
+    def test_func(self):
+        regle = type(self).permission   # lue sur la classe : fonction simple, pas une méthode liée
+        if regle is None:
+            raise ImproperlyConfigured(f"{type(self).__name__} doit définir « permission » (fonction de "
+                                       "core.permissions) ou redéfinir test_func().")
+        return regle(self.request.user)
+
+
+class RoleRequiredMixin(PermissionRequiseMixin):
     """Autorise l'accès seulement aux rôles listés dans `roles` (l'admin passe toujours)."""
     roles = ()
 
     def test_func(self):
         u = self.request.user
-        return u.is_superuser or u.role == "ADMIN" or u.role in self.roles
+        return permissions.est_administrateur(u) or (permissions.est_connecte(u) and u.role in self.roles)
 
 
-class OrganisateurRequiredMixin(RoleRequiredMixin):
-    roles = ("ORGANISATEUR",)
+class AdminRequiredMixin(PermissionRequiseMixin):
+    """Réservé à l'administrateur (superutilisateur ou rôle ADMIN)."""
+    permission = permissions.est_administrateur
+
+
+class OrganisateurRequiredMixin(PermissionRequiseMixin):
+    """Organisateur ou administrateur."""
+    permission = permissions.peut_organiser
 
 
 class ProprietaireEvenementMixin(OrganisateurRequiredMixin):
-    """L'organisateur ne peut modifier que ses propres événements."""
+    """L'organisateur ne peut modifier que ses propres événements (l'admin : tous)."""
 
     def get_evenement(self):
         return self.get_object()
 
     def test_func(self):
-        if not super().test_func():
-            return False
-        u = self.request.user
-        return u.is_superuser or u.role == "ADMIN" or self.get_evenement().organisateur_id == u.id
+        # le rôle est vérifié avant de charger l'événement : un non-organisateur reçoit 403, jamais 404
+        return super().test_func() and permissions.peut_gerer_evenement(self.request.user, self.get_evenement())
 
 
-class AdminRequiredMixin(RoleRequiredMixin):
-    """Réservé à l'administrateur (superutilisateur ou rôle ADMIN)."""
-    roles = ()
+class ClientRequiredMixin(PermissionRequiseMixin):
+    """Espace client (demandes, suivi de ses événements) ; l'admin y accède pour la supervision."""
+    permission = permissions.acces_espace_client
 
 
-class ModuleRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+class ParticipantRequiredMixin(PermissionRequiseMixin):
+    """Espace participant ; l'admin y accède pour la supervision."""
+    permission = permissions.acces_espace_participant
+
+
+class PrestataireRequiredMixin(PermissionRequiseMixin):
+    """Espace prestataire (ses réservations) ; l'admin y accède pour la supervision."""
+    permission = permissions.acces_espace_prestataire
+
+
+class ModuleRequiredMixin(PermissionRequiseMixin):
     """Accès à la page d'entrée d'un module : applique la règle déclarée dans ``<app>/navigation.py``.
 
     Exemple : ``class ParticipantsAccueilView(ModuleRequiredMixin, ListView): module = "participants"``.

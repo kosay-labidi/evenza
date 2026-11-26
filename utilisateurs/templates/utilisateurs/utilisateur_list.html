@@ -14,7 +14,7 @@
   <td><span class="chip soft">{{ u.get_role_display }}</span></td>
   <td>{{ u.nb_evenements }}</td><td>{{ u.nb_inscriptions }}</td>
   <td>{% if u.is_active %}<span class="badge confirmee">Actif</span>{% else %}<span class="badge annulee">Désactivé</span>{% endif %}</td>
-  <td class="row-actions"><a class="btn ghost sm" href="{% url 'utilisateurs:utilisateur_modifier' u.pk %}">Modifier</a>{% if u.pk != user.pk %}<a class="btn ghost sm danger-text" href="{% url 'utilisateurs:utilisateur_supprimer' u.pk %}">Supprimer</a>{% endif %}</td>
+  <td class="row-actions">{% if u.gerable %}<a class="btn ghost sm" href="{% url 'utilisateurs:utilisateur_modifier' u.pk %}">Modifier</a>{% else %}<span class="muted small" title="Compte technique : géré uniquement par un superutilisateur">Protégé</span>{% endif %}{% if u.gerable and u.pk != user.pk %}{% if u.is_active %}<a class="btn outline sm" href="{% url 'utilisateurs:utilisateur_desactiver' u.pk %}">Désactiver</a>{% else %}<a class="btn outline sm" href="{% url 'utilisateurs:utilisateur_reactiver' u.pk %}">Réactiver</a>{% endif %}<a class="btn ghost sm danger-text" href="{% url 'utilisateurs:utilisateur_supprimer' u.pk %}">Supprimer</a>{% endif %}</td>
 </tr>{% empty %}<tr><td colspan="8" class="muted">Aucun utilisateur ne correspond.</td></tr>{% endfor %}
 </tbody></table></div>
 {% include "partials/pagination.html" %}

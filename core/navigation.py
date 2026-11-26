@@ -52,8 +52,16 @@ def modules():
     return [import_module(f"{app}.navigation").MODULE for app in ORDRE_MODULES]
 
 
+def espace_personnel():
+    """Pages personnelles : celles ci-dessus, puis celles qu'une gestion déclare dans la variable
+    facultative ``ESPACE`` de son ``<app>/navigation.py`` (ex. « Mes demandes » pour le client,
+    avec ``acces=acces_espace_client``). Chaque lien n'est affiché qu'aux rôles autorisés par son ``acces``."""
+    declares = [m for app in ORDRE_MODULES for m in getattr(import_module(f"{app}.navigation"), "ESPACE", ())]
+    return (*ESPACE_PERSONNEL, *declares)
+
+
 def get_module(cle):
-    for m in [APERCU, *modules(), *ESPACE_PERSONNEL]:
+    for m in [APERCU, *modules(), *espace_personnel()]:
         if m.cle == cle:
             return m
     raise KeyError(f"Module inconnu : {cle!r}")
@@ -65,7 +73,7 @@ def module_actif(request):
     if not match:
         return None
     ns, url = match.namespace, match.url_name
-    for m in ESPACE_PERSONNEL:                       # d'abord les pages personnelles (plus spécifiques)
+    for m in espace_personnel():                     # d'abord les pages personnelles (plus spécifiques)
         if m.namespace == ns and url in m.urls_actives:
             return m.cle
     if ns == "core" and url == "dashboard":
@@ -91,6 +99,6 @@ def navigation_pour(request):
                 "description": m.description, "actif": m.cle == actif, "sous_liens": sous}
 
     principale = [item(APERCU)] + [item(m) for m in modules() if m.acces(user)]
-    personnelle = [item(m, avec_sous_liens=False) for m in ESPACE_PERSONNEL if m.acces(user)]
+    personnelle = [item(m, avec_sous_liens=False) for m in espace_personnel() if m.acces(user)]
     courant = next((i for i in principale + personnelle if i["actif"]), None)
     return {"principale": principale, "personnelle": personnelle, "actif": courant}
