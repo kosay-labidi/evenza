@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 
 from evenements.models import Evenement
@@ -10,9 +11,16 @@ class Ressource(models.Model):
         MATERIEL = "MATERIEL", "Matériel"
         VEHICULE = "VEHICULE", "Véhicule"
 
+    class Etat(models.TextChoices):
+        DISPONIBLE = "DISPONIBLE", "Disponible"
+        MAINTENANCE = "MAINTENANCE", "En maintenance"
+        HORS_SERVICE = "HORS_SERVICE", "Hors service"
+
     nom = models.CharField(max_length=120)
     type = models.CharField(max_length=10, choices=Type.choices)
-    quantite = models.PositiveIntegerField("quantité", default=1, help_text="Nombre d'unités disponibles")
+    quantite = models.PositiveIntegerField("quantité", default=1, validators=[MinValueValidator(1)],
+                                           help_text="Nombre d'unités disponibles")
+    etat = models.CharField("état", max_length=15, choices=Etat.choices, default=Etat.DISPONIBLE)
 
     class Meta:
         ordering = ["type", "nom"]

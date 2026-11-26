@@ -1,7 +1,7 @@
 {% extends "app_base.html" %}{% block title %}{{ object.nom }}{% endblock %}
 {% block banner %}
 <section class="page-banner">
-  <div><span class="eyebrow">{{ object.get_type_display }}</span><h1>{{ object.nom }}</h1><p>{{ object.quantite }} unité{{ object.quantite|pluralize }} disponible{{ object.quantite|pluralize }}</p></div>
+  <div><span class="eyebrow">{{ object.get_type_display }}</span><h1>{{ object.nom }}</h1><p>{{ object.quantite }} unité{{ object.quantite|pluralize }} au total</p><p>{% include "ressources/_etat_badge.html" with r=object %}</p></div>
   <div class="actions">
     <a class="btn primary" href="{% url 'ressources:modifier' object.pk %}">Modifier</a>
     <a class="btn ghost danger-text" href="{% url 'ressources:supprimer' object.pk %}">Supprimer</a>

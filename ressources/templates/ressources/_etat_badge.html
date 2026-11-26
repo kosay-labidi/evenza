@@ -1,0 +1,1 @@
+{% comment %} Badge d'état d'une ressource. Variable : r (la ressource). {% endcomment %}<span class="badge {% if r.etat == 'DISPONIBLE' %}confirmee{% elif r.etat == 'MAINTENANCE' %}attente{% else %}annulee{% endif %}">{{ r.get_etat_display }}</span>
