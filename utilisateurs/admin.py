@@ -61,10 +61,10 @@ class UtilisateurAdmin(UserAdmin):
     change_password_form = MotDePasseAdminForm
     list_display = ("username", "email", "role", "is_active", "is_staff", "is_superuser")
     list_filter = ("role", "is_active", "is_staff", "is_superuser")
-    fieldsets = UserAdmin.fieldsets + (("Évenza", {"fields": ("role", "telephone")}),)
+    fieldsets = UserAdmin.fieldsets + (("Évenza", {"fields": ("role", "telephone", "photo")}),)
     add_fieldsets = (
         (None, {"classes": ("wide",), "fields": ("username", "email", "usable_password", "password1", "password2")}),
-        ("Évenza", {"fields": ("first_name", "last_name", "role", "telephone")}),
+        ("Évenza", {"fields": ("first_name", "last_name", "role", "telephone", "photo")}),
     )
 
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):

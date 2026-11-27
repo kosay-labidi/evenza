@@ -82,20 +82,21 @@ class ModuleRequiredMixin(PermissionRequiseMixin):
 
 class SuppressionMixin:
     """Pour les DeleteView : message de succès, et message clair au lieu d'une erreur 500
-    si l'objet est encore utilisé ailleurs (ForeignKey en PROTECT → ProtectedError)."""
+    si l'objet est encore utilisé ailleurs (ForeignKey en PROTECT/RESTRICT → ProtectedError/RestrictedError)."""
     success_message = "« {objet} » a été supprimé."
     protege_message = "Impossible de supprimer « {objet} » : il est encore utilisé par {liens}."
 
     def form_valid(self, form):
         from django.contrib import messages
-        from django.db.models import ProtectedError
+        from django.db.models import ProtectedError, RestrictedError
         from django.shortcuts import redirect
 
         nom = str(self.object)
         try:
             reponse = super().form_valid(form)
-        except ProtectedError as e:
-            liens = sorted({f"{o._meta.verbose_name} « {o} »" for o in list(e.protected_objects)[:3]})
+        except (ProtectedError, RestrictedError) as e:
+            bloquants = getattr(e, "protected_objects", None) or getattr(e, "restricted_objects", ())
+            liens = sorted({f"{o._meta.verbose_name} « {o} »" for o in list(bloquants)[:3]})
             messages.error(self.request, self.protege_message.format(objet=nom, liens=", ".join(liens)))
             return redirect(self.get_url_si_protege())
         messages.success(self.request, self.success_message.format(objet=nom))

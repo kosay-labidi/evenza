@@ -273,7 +273,7 @@ class ProfilTests(BaseUtilisateursTests):
     def test_formulaire_limite_aux_coordonnees(self):
         r = self.client.get(self.url)
         self.assertEqual(r.context["form"].instance.pk, self.part.pk)
-        self.assertEqual(set(r.context["form"].fields), {"first_name", "last_name", "email", "telephone"})
+        self.assertEqual(set(r.context["form"].fields), {"photo", "first_name", "last_name", "email", "telephone"})
         self.assertTrue(r.context["form"].fields["email"].required)
 
     def test_modification_et_conservation_de_sa_propre_adresse(self):
@@ -814,7 +814,7 @@ class MatriceAccesServeurTests(RolesBase):
             "core:dashboard": tous, "utilisateurs:profil": tous, "participants:mes_inscriptions": tous,
             "evenements:liste": tous,
             "evenements:mes_evenements": orga, "evenements:creer": orga, "evenements:lieux": orga,
-            "participants:index": orga, "programmes:index": orga, "programmes:intervenants": orga,
+            "participants:index": orga, "programmes:index": orga,
             "prestataires:liste": orga, "ressources:liste": orga, "ressources:affectations": orga,
             "utilisateurs:utilisateur_liste": {"ADMIN"}, "utilisateurs:utilisateur_creer": {"ADMIN"},
         }
@@ -827,3 +827,113 @@ class MatriceAccesServeurTests(RolesBase):
     def test_inscription_publique_inchangee(self):
         from .forms import InscriptionCompteForm
         self.assertEqual([c for c, _ in InscriptionCompteForm().fields["role"].choices], ["PARTICIPANT", "CLIENT"])
+
+
+# ======================================================================= photo de profil
+def image_test(nom="photo.png", fmt="PNG", taille=(40, 40)):
+    """Petite image valide générée en mémoire (Pillow)."""
+    import io
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+    tampon = io.BytesIO()
+    Image.new("RGB", taille, (81, 45, 59)).save(tampon, fmt)
+    return SimpleUploadedFile(nom, tampon.getvalue(), content_type=f"image/{fmt.lower()}")
+
+
+def image_bruit_lourde():
+    """PNG de bruit aléatoire (incompressible) d'environ 3 Mo : au-delà de la limite de 2 Mo."""
+    import io
+    import os
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+    tampon = io.BytesIO()
+    Image.frombytes("RGB", (1000, 1000), os.urandom(3_000_000)).save(tampon, "PNG")
+    return SimpleUploadedFile("grande.png", tampon.getvalue(), content_type="image/png")
+
+
+class PhotoProfilTests(BaseUtilisateursTests):
+    """Photo de profil : ajout à l'inscription, remplacement / suppression depuis le profil, contrôles."""
+
+    def setUp(self):
+        super().setUp()
+        import shutil
+        import tempfile
+        from django.test import override_settings
+        self.media = tempfile.mkdtemp()
+        reglage = override_settings(MEDIA_ROOT=self.media)
+        reglage.enable()
+        self.addCleanup(reglage.disable)
+        self.addCleanup(shutil.rmtree, self.media, True)
+
+    def fichier_existe(self, nom):
+        import os
+        return os.path.exists(os.path.join(self.media, nom))
+
+    def poster_profil(self, **kw):
+        d = {"first_name": "Nour", "last_name": "T", "email": "part@ex.tn", "telephone": ""}
+        d.update(kw)
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(reverse("utilisateurs:profil"), d)
+
+    def test_inscription_avec_photo(self):
+        r = self.client.post(reverse("utilisateurs:register"), donnees_inscription(photo=image_test()))
+        self.assertEqual(r.status_code, 302)
+        u = Utilisateur.objects.get(username="sara")
+        self.assertRegex(u.photo.name, r"^utilisateurs/[0-9a-f]{32}\.png$")   # nom d'origine non conservé
+        self.assertTrue(self.fichier_existe(u.photo.name))
+
+    def test_inscription_sans_photo_reste_possible(self):
+        self.client.post(reverse("utilisateurs:register"), donnees_inscription())
+        self.assertFalse(Utilisateur.objects.get(username="sara").photo)
+
+    def test_remplacer_puis_supprimer_depuis_le_profil(self):
+        self.client.force_login(self.part)
+        self.poster_profil(photo=image_test())
+        ancienne = Utilisateur.objects.get(pk=self.part.pk).photo.name
+        self.assertTrue(self.fichier_existe(ancienne))
+        self.assertContains(self.client.get(reverse("utilisateurs:profil")), "Supprimer la photo actuelle")
+        # remplacement : la nouvelle photo est enregistrée, l'ancien fichier supprimé
+        self.poster_profil(photo=image_test("nouvelle.jpg", "JPEG"))
+        nouvelle = Utilisateur.objects.get(pk=self.part.pk).photo.name
+        self.assertNotEqual(nouvelle, ancienne)
+        self.assertTrue(self.fichier_existe(nouvelle)); self.assertFalse(self.fichier_existe(ancienne))
+        # modifier le profil sans toucher à la photo la conserve
+        self.poster_profil(first_name="Nouria")
+        self.assertEqual(Utilisateur.objects.get(pk=self.part.pk).photo.name, nouvelle)
+        # case « Supprimer la photo actuelle »
+        self.poster_profil(**{"photo-clear": "on"})
+        self.assertFalse(Utilisateur.objects.get(pk=self.part.pk).photo)
+        self.assertFalse(self.fichier_existe(nouvelle))
+
+    def test_formats_et_taille_refuses(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.client.force_login(self.part)
+        cas = {
+            "gif": (image_test("anim.gif", "GIF"), "Format non pris en charge"),
+            "faux": (SimpleUploadedFile("faux.jpg", b"pas une image", content_type="image/jpeg"), "image"),
+            "lourde": (image_bruit_lourde(), "2 Mo"),
+        }
+        for nom, (fichier, attendu) in cas.items():
+            r = self.poster_profil(photo=fichier)
+            self.assertEqual(r.status_code, 200, nom)
+            self.assertIn(attendu, " ".join(r.context["form"].errors["photo"]), nom)
+        self.assertFalse(Utilisateur.objects.get(pk=self.part.pk).photo)
+
+    def test_admin_peut_changer_la_photo_et_la_liste_l_affiche(self):
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse("utilisateurs:utilisateur_modifier", args=[self.part.pk]), {
+            "username": "part", "first_name": "P", "last_name": "Art", "email": "part@ex.tn", "telephone": "",
+            "role": "PARTICIPANT", "photo": image_test()})
+        self.assertEqual(r.status_code, 302)
+        photo = Utilisateur.objects.get(pk=self.part.pk).photo
+        self.assertTrue(photo)
+        self.assertContains(self.client.get(reverse("utilisateurs:utilisateur_liste")), photo.url)
+        self.assertContains(self.client.get(reverse("utilisateurs:utilisateur_detail", args=[self.part.pk])), photo.url)
+
+    def test_suppression_du_compte_supprime_le_fichier(self):
+        self.client.force_login(self.part)
+        self.poster_profil(photo=image_test())
+        nom = Utilisateur.objects.get(pk=self.part.pk).photo.name
+        with self.captureOnCommitCallbacks(execute=True):
+            Utilisateur.objects.get(pk=self.part.pk).delete()
+        self.assertFalse(self.fichier_existe(nom))

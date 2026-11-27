@@ -46,7 +46,7 @@ class Inscription(models.Model):
     participant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="inscriptions")
     date_inscription = models.DateTimeField(auto_now_add=True)
     statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.CONFIRMEE)
-    type_billet = models.ForeignKey(TypeBillet, on_delete=models.PROTECT, null=True, blank=True, related_name="inscriptions")
+    type_billet = models.ForeignKey(TypeBillet, on_delete=models.RESTRICT, null=True, blank=True, related_name="inscriptions")
     quantite = models.PositiveSmallIntegerField("nombre de places", default=1,
                                                 validators=[MinValueValidator(1), MaxValueValidator(10)])
     montant = models.DecimalField(max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)])

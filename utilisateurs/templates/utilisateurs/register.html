@@ -4,7 +4,7 @@
 <ol class="stepper" id="regSteps" aria-label="Étapes de l'inscription"><li class="on" aria-current="step"><b>1</b><span>Profil</span></li><li><b>2</b><span>Coordonnées</span></li><li><b>3</b><span>Sécurité</span></li></ol>
 <p class="sr-only" id="regEtat" aria-live="polite"></p>
 {# Sans JavaScript, les trois étapes restent visibles et le formulaire s'envoie normalement. #}
-<form method="post" class="aform" id="regForm" novalidate>{% csrf_token %}
+<form method="post" enctype="multipart/form-data" class="aform" id="regForm" novalidate>{% csrf_token %}
   {% if form.non_field_errors %}<div class="msg error" role="alert">{{ form.non_field_errors|join:" " }}</div>{% endif %}
   {% if form.errors %}<div class="msg error" role="alert">Certains champs sont à corriger : ils sont signalés ci-dessous.</div>{% endif %}
   <fieldset class="step" data-step="1" data-titre="Profil">
@@ -23,6 +23,12 @@
     {% include "partials/auth_field.html" with field=form.username %}
     {% include "partials/auth_field.html" with field=form.email %}
     {% include "partials/auth_field.html" with field=form.telephone %}
+    <div class="afield{% if form.photo.errors %} has-error{% endif %}">
+      <label for="{{ form.photo.id_for_label }}">Photo de profil</label>
+      {{ form.photo }}
+      {% for e in form.photo.errors %}<small class="err">{{ e }}</small>{% endfor %}
+      {% if form.errors and not form.photo.errors %}<small class="muted">Si vous aviez choisi une photo, sélectionnez-la à nouveau.</small>{% endif %}
+    </div>
   </fieldset>
   <fieldset class="step" data-step="3" data-titre="Sécurité">
     <legend>Choisissez un mot de passe</legend>
