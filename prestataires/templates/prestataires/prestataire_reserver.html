@@ -1,0 +1,15 @@
+{% extends "prestataires/base_prestataires.html" %}{% block title %}Réserver {{ object.nom }}{% endblock %}
+{% block ariane %}<li><a href="{% url 'prestataires:liste' %}">Prestataires</a></li><li><a href="{{ object.get_absolute_url }}">{{ object.nom }}</a></li><li><span aria-current="page">Réserver</span></li>{% endblock %}
+{% block page %}
+<header class="pr-head"><div class="pr-head-main"><span class="pr-initiales lg" aria-hidden="true">{{ object.initiales }}</span>
+  <div><span class="pr-eyebrow">Réserver</span><h1>{{ object.nom }}</h1><p>Choisis l'événement pour lequel tu veux réserver ce prestataire.</p></div></div></header>
+<section class="pr-panel" aria-labelledby="pr-evts"><h2 id="pr-evts">Mes événements</h2>
+  <div class="pr-table-wrap" role="region" aria-labelledby="pr-evts" tabindex="0">
+    <table class="pr-table"><thead><tr><th scope="col">Événement</th><th scope="col">Date</th><th scope="col">Statut</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead><tbody>
+    {% for e in evenements_choix %}<tr><td>{{ e.titre }}</td><td class="num">{{ e.date_debut|date:"d/m/Y" }}</td><td><span class="badge {{ e.statut|lower }}">{{ e.get_statut_display }}</span></td>
+      <td><a class="btn primary sm" href="{% url 'prestataires:reserver' e.pk %}?prestataire={{ object.pk }}" aria-label="Réserver {{ object.nom }} pour {{ e.titre }}">Choisir</a></td></tr>
+    {% empty %}<tr><td colspan="4" class="pr-vide">Tu n'as aucun événement ouvert. Crée d'abord un événement.</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</section>
+{% endblock %}

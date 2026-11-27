@@ -1,0 +1,16 @@
+{% comment %} F5 · Dépôt de photo avec aperçu. Le vrai <input type="file"> couvre toute la zone : clic, clavier et
+   glisser-déposer marchent même sans JavaScript ; prestataires.js ajoute la surbrillance et l'aperçu.
+   Variables : champ (BoundField photo), photo_actuelle (FieldFile ou vide). {% endcomment %}
+<div class="pr-field{% if champ.errors %} has-error{% endif %}">
+  <span class="pr-label" id="{{ champ.id_for_label }}-titre">{{ champ.label }}</span>
+  <div class="pr-depot{% if photo_actuelle %} a-photo{% endif %}" data-pr-depot>
+    <img class="pr-depot-apercu" src="{% if photo_actuelle %}{{ photo_actuelle.url }}{% endif %}" alt="Photo actuelle" width="84" height="84" data-pr-depot-img{% if not photo_actuelle %} hidden{% endif %}>
+    <span class="pr-depot-ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span>
+    <span class="pr-depot-txt"><b data-pr-depot-nom>{% if photo_actuelle %}Remplacer la photo{% else %}Glisse une image ici{% endif %}</b><span>ou <u>choisis un fichier</u></span></span>
+    <input type="file" class="pr-depot-input" name="{{ champ.html_name }}" id="{{ champ.id_for_label }}" accept="image/jpeg,image/png,image/webp"
+      aria-labelledby="{{ champ.id_for_label }}-titre" aria-describedby="{{ champ.id_for_label }}-aide">
+  </div>
+  {% if photo_actuelle %}<label class="pr-check"><input type="checkbox" name="{{ champ.html_name }}-clear" id="{{ champ.html_name }}-clear_id"> Retirer la photo actuelle</label>{% endif %}
+  <small class="pr-aide" id="{{ champ.id_for_label }}-aide">{{ champ.help_text }}</small>
+  {% for e in champ.errors %}<small class="pr-err" role="alert">{{ e }}</small>{% endfor %}
+</div>

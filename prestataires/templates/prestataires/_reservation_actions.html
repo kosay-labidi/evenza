@@ -1,0 +1,7 @@
+{% comment %} Boutons Confirmer / Annuler d'une réservation (US 4.4.1), réutilisables sur n'importe quelle page.
+   Variables : r (Reservation), next (URL de retour, optionnelle).
+   Usage : {% include "prestataires/_reservation_actions.html" with r=r next=request.get_full_path %} {% endcomment %}
+{% if r.peut_confirmer or r.peut_annuler %}<span class="pr-statut-actions row-actions">
+  {% if r.peut_confirmer %}<form method="post" action="{% url 'prestataires:reservation_statut' r.pk 'CONFIRMEE' %}" class="inline">{% csrf_token %}{% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}<button class="btn primary sm" type="submit" aria-label="Confirmer la réservation de {{ r.prestataire }}">Confirmer</button></form>{% endif %}
+  {% if r.peut_annuler %}<form method="post" action="{% url 'prestataires:reservation_statut' r.pk 'ANNULEE' %}" class="inline" onsubmit="return confirm('Annuler cette réservation ? Cette action est définitive.');">{% csrf_token %}{% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}<button class="btn ghost sm danger-text pr-btn-annuler" type="submit" aria-label="Annuler la réservation de {{ r.prestataire }}">Annuler</button></form>{% endif %}
+</span>{% else %}<span class="muted small">—</span>{% endif %}

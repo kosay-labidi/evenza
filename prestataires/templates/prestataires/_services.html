@@ -1,0 +1,14 @@
+{% comment %} F1 · Services en cartes photo à cocher : noir et blanc, puis couleur + coche une fois cochés (CSS :has).
+   Variable : champ (BoundField du champ services). Chaque case porte la photo et le type pour l'aperçu en direct. {% endcomment %}
+<div class="pr-field{% if champ.errors %} has-error{% endif %}" role="group" aria-label="{{ champ.label }}">
+  <ul class="pr-services pr-services-photo">
+    {% for c in champ %}{% with svc=c.data.value.instance %}<li><label class="pr-svc pr-svc-photo" for="{{ c.id_for_label }}" data-cover="{{ svc.couverture_url }}" data-type="{{ svc.get_type_display }}">
+      <img src="{{ svc.couverture_url }}" alt="" width="1200" height="800" loading="lazy">
+      {{ c.tag }}
+      <span class="pr-svc-coche" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      <span class="pr-svc-txt"><b>{{ svc.nom }}</b><small>{{ svc.get_type_display }}</small></span>
+    </label></li>{% endwith %}{% endfor %}
+  </ul>
+  {% if champ.help_text %}<small class="pr-aide">{{ champ.help_text }}</small>{% endif %}
+  {% for e in champ.errors %}<small class="pr-err" role="alert">{{ e }}</small>{% endfor %}
+</div>

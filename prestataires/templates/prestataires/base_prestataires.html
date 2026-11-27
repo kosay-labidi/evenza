@@ -1,0 +1,18 @@
+{% extends "app_base.html" %}{% load static %}
+{% comment %} Gabarit commun aux pages de la gestion des prestataires.
+   Charge prestataires.css (bloc app_head de app_base.html) et place le fil d'Ariane.
+   Blocs : ariane (éléments <li> après « Accueil »), page (contenu).
+   prestataires.js : inclinaison des cartes, anneau, aperçu du formulaire, dépôt de photo, Kanban.
+   Les compteurs (data-count), apparitions (.reveal), titres (data-split) et parallaxe (data-parallax)
+   viennent des scripts communs (main.js, motion.js), sans les modifier. {% endcomment %}
+{% block app_head %}<link rel="stylesheet" href="{% static 'prestataires/css/prestataires.css' %}">{% endblock %}
+{% block content %}
+<div class="pr-page">
+  <nav class="pr-ariane" aria-label="Fil d'Ariane"><ol>
+    <li><a href="{% url 'core:home' %}">Accueil</a></li>
+    {% block ariane %}{% endblock %}
+  </ol></nav>
+  {% block page %}{% endblock %}
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'prestataires/js/prestataires.js' %}"></script>{% endblock %}

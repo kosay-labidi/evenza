@@ -1,0 +1,24 @@
+{% comment %} Carte du Kanban. Variable : r (Reservation). data-vers = statuts accessibles (Reservation.TRANSITIONS) ;
+   chaque statut accessible a son formulaire (boutons ✓ / ✕), réutilisé par le glisser-déposer. {% endcomment %}
+<li class="pr-kcarte {{ r.statut|lower }}" data-id="{{ r.pk }}" tabindex="-1"
+    data-vers="{% if r.peut_confirmer %}CONFIRMEE {% endif %}{% if r.peut_annuler %}ANNULEE{% endif %}"
+    {% if r.peut_confirmer or r.peut_annuler %}draggable="true" aria-describedby="pr-kanban-aide"{% endif %}>
+  <div class="pr-kcarte-haut">
+    {% if r.prestataire.photo %}<img class="pr-kvignette" src="{{ r.prestataire.photo.url }}" alt="" width="44" height="44" loading="lazy">
+    {% else %}<img class="pr-kvignette" src="{{ r.service.couverture_url }}" alt="" width="44" height="44" loading="lazy">{% endif %}
+    <div class="pr-kcarte-txt">
+      <a href="{{ r.prestataire.get_absolute_url }}">{{ r.prestataire.nom }}</a>
+      <small>{{ r.service.nom }} · demandée le {{ r.date_demande|date:"d/m/Y" }}</small>
+    </div>
+  </div>
+  <div class="pr-kcarte-bas">
+    <b class="pr-kmontant">{{ r.montant|floatformat:"2g" }} DT</b>
+    <span class="pr-badge {{ r.statut|lower }}">{{ r.get_statut_display }}</span>
+  </div>
+  {% if r.peut_confirmer or r.peut_annuler %}<div class="pr-kboutons">
+    {% if r.peut_confirmer %}<form method="post" action="{% url 'prestataires:reservation_statut' r.pk 'CONFIRMEE' %}" data-pr-statut="CONFIRMEE">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button class="pr-kbtn ok" type="submit" aria-label="Confirmer la réservation de {{ r.prestataire }}"><span aria-hidden="true">✓</span> Confirmer</button></form>{% endif %}
+    {% if r.peut_annuler %}<form method="post" action="{% url 'prestataires:reservation_statut' r.pk 'ANNULEE' %}" data-pr-statut="ANNULEE" onsubmit="return confirm('Annuler cette réservation ? Cette action est définitive.');">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button class="pr-kbtn ko" type="submit" aria-label="Annuler la réservation de {{ r.prestataire }}"><span aria-hidden="true">✕</span> Annuler</button></form>{% endif %}
+  </div>{% endif %}
+</li>

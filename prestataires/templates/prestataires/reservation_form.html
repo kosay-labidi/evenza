@@ -1,3 +1,20 @@
-{% extends "form_base.html" %}{% block title %}Réserver un prestataire{% endblock %}
-{% block eyebrow %}{{ evenement }}{% endblock %}{% block heading %}Réserver un prestataire{% endblock %}{% block submit %}Envoyer la demande{% endblock %}
-{% block cancel %}{{ evenement.get_absolute_url }}{% if request.GET.sans_programmes %}?sans_programmes=1{% endif %}{% endblock %}
+{% extends "prestataires/base_prestataires.html" %}{% block title %}Réserver un prestataire{% endblock %}
+{% block ariane %}<li><a href="{% url 'prestataires:liste' %}">Prestataires</a></li><li><a href="{% url 'prestataires:reservations_evenement' evenement.pk %}">{{ evenement.titre }}</a></li><li><span aria-current="page">Réserver</span></li>{% endblock %}
+{% block page %}
+<header class="pr-head"><div><span class="pr-eyebrow">{{ evenement.titre }} · {{ evenement.date_debut|date:"d/m/Y" }}</span><h1>Réserver un prestataire</h1><p>La demande est enregistrée avec le statut « Demandée ». Les champs marqués d'un <span class="pr-requis" aria-hidden="true">*</span> sont obligatoires.</p></div></header>
+<section class="pr-form-card">
+  <form method="post" class="pr-form" novalidate>{% csrf_token %}
+    {% if form.non_field_errors %}<div class="pr-form-erreurs" role="alert">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+    <fieldset class="pr-section"><legend>Prestation<small>Qui, et pour quel service.</small></legend>
+      <div class="pr-row">{% include "prestataires/_champ.html" with champ=form.prestataire %}{% include "prestataires/_champ.html" with champ=form.service %}</div>
+    </fieldset>
+    <fieldset class="pr-section"><legend>Montant</legend>
+      {% include "prestataires/_champ.html" with champ=form.montant %}
+    </fieldset>
+    <div class="pr-form-actions">
+      <button class="btn primary" type="submit">Enregistrer</button>
+      <a class="btn ghost" href="{{ evenement.get_absolute_url }}{% if request.GET.sans_programmes %}?sans_programmes=1{% endif %}">Annuler</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

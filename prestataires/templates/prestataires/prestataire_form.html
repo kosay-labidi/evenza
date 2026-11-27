@@ -1,1 +1,45 @@
-{% extends "form_base.html" %}{% block heading %}Nouveau prestataire{% endblock %}
+{% extends "prestataires/base_prestataires.html" %}{% block title %}{% if object %}Modifier {{ object.nom }}{% else %}Nouveau prestataire{% endif %}{% endblock %}
+{% block ariane %}<li><a href="{% url 'prestataires:liste' %}">Prestataires</a></li>{% if object %}<li><a href="{{ object.get_absolute_url }}">{{ object.nom }}</a></li><li><span aria-current="page">Modifier</span></li>{% else %}<li><span aria-current="page">Nouveau</span></li>{% endif %}{% endblock %}
+{% block page %}
+<header class="pr-head"><div><span class="pr-eyebrow">Prestataires</span><h1>{% if object %}Modifier « {{ object.nom }} »{% else %}Nouveau prestataire{% endif %}</h1><p>Les champs marqués d'un <span class="pr-requis" aria-hidden="true">*</span> sont obligatoires.</p></div></header>
+<div class="pr-form-layout">
+<section class="pr-form-card">
+  <form method="post" class="pr-form" enctype="multipart/form-data" novalidate data-pr-form>{% csrf_token %}
+    {% if form.non_field_errors %}<div class="pr-form-erreurs" role="alert">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+    <fieldset class="pr-section"><legend>Identité<small>Comment ce partenaire apparaît sur le site.</small></legend>
+      {% include "prestataires/_champ.html" with champ=form.nom %}
+      {% include "prestataires/_photo.html" with champ=form.photo photo_actuelle=object.photo %}
+    </fieldset>
+    <fieldset class="pr-section"><legend>Contact<small>Pour joindre le prestataire.</small></legend>
+      <div class="pr-row">{% include "prestataires/_champ.html" with champ=form.telephone %}{% include "prestataires/_champ.html" with champ=form.email %}</div>
+    </fieldset>
+    <fieldset class="pr-section"><legend>Services<small>Ce que ce prestataire peut assurer pour vos événements.</small></legend>
+      {% include "prestataires/_services.html" with champ=form.services %}
+    </fieldset>
+    <div class="pr-form-actions">
+      <button class="btn primary" type="submit">Enregistrer</button>
+      <a class="btn ghost" href="{% if object %}{{ object.get_absolute_url }}{% else %}{% url 'prestataires:liste' %}{% endif %}">Annuler</a>
+    </div>
+  </form>
+</section>
+
+{# F2 · Aperçu en direct de la carte (mis à jour par prestataires.js pendant la saisie) #}
+<aside class="pr-apercu" aria-labelledby="pr-apercu-titre">
+  <h2 id="pr-apercu-titre" class="pr-eyebrow">Aperçu de la carte</h2>
+  <article class="pr-card pr-card-photo" data-pr-apercu>
+    <div class="pr-cover">
+      <span class="pr-cover-img"><img src="{% if object %}{{ object.couverture_url }}{% else %}{{ couverture_defaut }}{% endif %}" alt="" width="1200" height="800" data-pr-apercu-cover data-defaut="{{ couverture_defaut }}"></span>
+      <span class="pr-chip" data-pr-apercu-chip{% if not object.service_principal %} hidden{% endif %}>{{ object.service_principal.get_type_display }}</span>
+      <img class="pr-avatar" src="{% if object.photo %}{{ object.photo.url }}{% endif %}" alt="" width="84" height="84" data-pr-apercu-photo{% if not object.photo %} hidden{% endif %}>
+      <span class="pr-initiales pr-avatar" aria-hidden="true" data-pr-apercu-initiales{% if object.photo %} hidden{% endif %}>{% if object %}{{ object.initiales }}{% else %}?{% endif %}</span>
+    </div>
+    <div class="pr-card-body">
+      <h3 data-pr-apercu-nom>{% if object %}{{ object.nom }}{% else %}Nom du prestataire{% endif %}</h3>
+      <p class="pr-card-meta" data-pr-apercu-tel>{% if object.telephone %}{{ object.telephone }}{% else %}Téléphone non renseigné{% endif %}</p>
+      <ul class="pr-tags" data-pr-apercu-tags>{% for s in object.services.all %}<li class="pr-tag">{{ s.get_type_display }}</li>{% endfor %}</ul>
+    </div>
+  </article>
+  <p class="pr-aide">C'est ainsi que la carte apparaîtra dans la liste.</p>
+</aside>
+</div>
+{% endblock %}

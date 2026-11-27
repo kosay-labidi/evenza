@@ -1,0 +1,32 @@
+{% extends "prestataires/base_prestataires.html" %}{% block title %}Réservations · {{ evenement.titre }}{% endblock %}
+{% block ariane %}<li><a href="{% url 'prestataires:liste' %}">Prestataires</a></li><li><a href="{{ evenement.get_absolute_url }}">{{ evenement.titre }}</a></li><li><span aria-current="page">Réservations</span></li>{% endblock %}
+{% block page %}
+<header class="pr-head">
+  <div><span class="pr-eyebrow">Réservations de prestataires</span><h1>{{ evenement.titre }}</h1><p>{{ evenement.date_debut|date:"d/m/Y H:i" }} · {{ evenement.lieu }}</p></div>
+  <div class="pr-actions">
+    <a class="btn primary" href="{% url 'prestataires:reserver' evenement.pk %}?next={{ request.path|urlencode }}">+ Réserver</a>
+    <a class="btn ghost" href="{{ evenement.get_absolute_url }}">← Événement</a>
+  </div>
+</header>
+
+{# K1 · Kanban par statut. Sans JavaScript, chaque bouton envoie son formulaire normalement.
+   Avec prestataires.js : glisser-déposer + envoi sans rechargement, et la carte « atterrit » dans sa colonne. #}
+<section class="pr-kanban" aria-labelledby="pr-kanban-titre" data-pr-kanban>
+  <div class="pr-kanban-head">
+    <h2 id="pr-kanban-titre">Tableau des réservations <span class="pr-kanban-nb">({{ object_list|length }})</span></h2>
+    <p class="pr-kanban-total" aria-live="polite">Total confirmé : <b>{{ total_confirme|floatformat:"2g" }} DT</b></p>
+  </div>
+  <p class="pr-kanban-aide" id="pr-kanban-aide">Glisse une carte vers « Confirmées » ou « Annulées », ou utilise ses boutons ✓ / ✕. Une réservation annulée est définitive.</p>
+  <div class="pr-kanban-cols">
+    {% for col in colonnes %}
+    <section class="pr-kcol" data-statut="{{ col.code }}" aria-labelledby="pr-kcol-{{ col.code|lower }}">
+      <h3 id="pr-kcol-{{ col.code|lower }}"><span class="pr-kpoint {{ col.code|lower }}" aria-hidden="true"></span>{{ col.libelle }} <span class="pr-kcompte">{{ col.reservations|length }}</span></h3>
+      <ul class="pr-kliste">
+        {% for r in col.reservations %}{% include "prestataires/_kanban_carte.html" %}
+        {% empty %}<li class="pr-kvide">Aucune réservation.</li>{% endfor %}
+      </ul>
+    </section>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

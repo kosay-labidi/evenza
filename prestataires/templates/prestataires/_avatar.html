@@ -1,0 +1,3 @@
+{% comment %} Avatar d'un prestataire : sa photo si elle existe, sinon ses initiales.
+   Variables : p (Prestataire), taille (optionnelle : « lg »). {% endcomment %}
+{% if p.photo %}<img class="pr-avatar{% if taille %} {{ taille }}{% endif %}" src="{{ p.photo.url }}" alt="" width="84" height="84" loading="lazy">{% else %}<span class="pr-initiales pr-avatar{% if taille %} {{ taille }}{% endif %}" aria-hidden="true">{{ p.initiales }}</span>{% endif %}

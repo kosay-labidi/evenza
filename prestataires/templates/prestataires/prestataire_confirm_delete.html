@@ -1,0 +1,28 @@
+{% extends "prestataires/base_prestataires.html" %}{% block title %}Supprimer {{ object.nom }}{% endblock %}
+{% block ariane %}<li><a href="{% url 'prestataires:liste' %}">Prestataires</a></li><li><a href="{{ object.get_absolute_url }}">{{ object.nom }}</a></li><li><span aria-current="page">Supprimer</span></li>{% endblock %}
+{% block page %}
+<header class="pr-head"><div class="pr-head-main">{% include "prestataires/_avatar.html" with p=object %}<div><span class="pr-eyebrow">Confirmation</span><h1>Supprimer « {{ object.nom }} » ?</h1></div></div></header>
+<section class="pr-alerte{% if nb_reservations %} pr-bloque{% else %} danger{% endif %}" aria-labelledby="pr-alerte-titre">
+  <span class="pr-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg></span>
+  <div>
+    {% if nb_reservations %}
+      {# S2 · Blocage expliqué : la liste des réservations qui empêchent la suppression #}
+      <h2 id="pr-alerte-titre">Suppression impossible pour l'instant</h2>
+      <p>Ce prestataire a <b>{{ nb_reservations }} réservation{{ nb_reservations|pluralize }} liée{{ nb_reservations|pluralize }}</b> : la suppression sera refusée tant que ses réservations existent. Annule-les ou supprime-les depuis la page de chaque événement.</p>
+      <ul class="pr-liees">{% for r in reservations_liees %}
+        <li><span class="pr-liees-txt"><a href="{% url 'prestataires:reservations_evenement' r.evenement_id %}">{{ r.evenement.titre }}</a><small>{{ r.evenement.date_debut|date:"d/m/Y" }} · {{ r.service.nom }} · {{ r.montant|floatformat:"2g" }} DT</small></span>
+          <span class="pr-badge {{ r.statut|lower }}">{{ r.get_statut_display }}</span></li>{% endfor %}
+        {% if nb_reservations > reservations_liees|length %}<li class="muted small">… et {{ nb_reservations|add:"-8" }} autre{{ nb_reservations|add:"-8"|pluralize }}.</li>{% endif %}
+      </ul>
+      <div class="pr-actions"><a class="btn primary" href="{{ object.get_absolute_url }}">Retour à la fiche</a></div>
+    {% else %}
+      <h2 id="pr-alerte-titre">Action définitive</h2>
+      <p>« {{ object.nom }} » n'a aucune réservation liée (0 réservation) et sera supprimé définitivement.</p>
+      <form method="post" class="pr-actions">{% csrf_token %}
+        <button class="btn danger" type="submit">Oui, supprimer</button>
+        <a class="btn ghost" href="{{ object.get_absolute_url }}">Annuler</a>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
