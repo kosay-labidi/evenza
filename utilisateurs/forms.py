@@ -18,6 +18,15 @@ def email_deja_utilise(email, sauf_pk=None):
 
 
 # ======================================================================= briques communes
+class PhotoWidget(forms.ClearableFileInput):
+    """Aperçu rond de la photo + choix du fichier + case « Supprimer la photo actuelle »."""
+    template_name = "utilisateurs/widgets/photo.html"
+
+    def __init__(self, attrs=None):
+        super().__init__({"accept": "image/jpeg,image/png,image/webp", **(attrs or {})})
+
+
+WIDGETS_PHOTO = {"photo": PhotoWidget}
 class CoordonneesMixin:
     """Prénom, nom, e-mail et téléphone : mêmes validations dans tous les formulaires de comptes."""
     noms_obligatoires = False
@@ -136,7 +145,8 @@ class InscriptionCompteForm(CoordonneesMixin, IdentifiantMixin, MotDePasseCreati
 
     class Meta(auth_forms.UserCreationForm.Meta):
         model = Utilisateur
-        fields = ("username", "first_name", "last_name", "email", "telephone", "role")
+        fields = ("username", "first_name", "last_name", "email", "telephone", "role", "photo")
+        widgets = WIDGETS_PHOTO
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -158,8 +168,9 @@ class ProfilForm(CoordonneesMixin, forms.ModelForm):
 
     class Meta:
         model = Utilisateur
-        fields = ("first_name", "last_name", "email", "telephone")
-        labels = {"first_name": "Prénom", "last_name": "Nom", "email": "Adresse e-mail"}
+        fields = ("photo", "first_name", "last_name", "email", "telephone")
+        labels = {"first_name": "Prénom", "last_name": "Nom", "email": "Adresse e-mail", "photo": "Photo de profil"}
+        widgets = WIDGETS_PHOTO
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -183,7 +194,8 @@ class UtilisateurCreationAdminForm(CoordonneesMixin, IdentifiantMixin, MotDePass
 
     class Meta(auth_forms.UserCreationForm.Meta):
         model = Utilisateur
-        fields = ("username", "first_name", "last_name", "email", "telephone", "role", "is_active")
+        fields = ("username", "first_name", "last_name", "email", "telephone", "role", "is_active", "photo")
+        widgets = WIDGETS_PHOTO
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -200,8 +212,9 @@ class UtilisateurAdminForm(CoordonneesMixin, IdentifiantMixin, forms.ModelForm):
 
     class Meta:
         model = Utilisateur
-        fields = ("username", "first_name", "last_name", "email", "telephone", "role")
-        labels = {"first_name": "Prénom", "last_name": "Nom"}
+        fields = ("photo", "username", "first_name", "last_name", "email", "telephone", "role")
+        labels = {"first_name": "Prénom", "last_name": "Nom", "photo": "Photo de profil"}
+        widgets = WIDGETS_PHOTO
 
     def __init__(self, *args, acteur=None, **kwargs):
         super().__init__(*args, **kwargs)

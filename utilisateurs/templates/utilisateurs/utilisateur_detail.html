@@ -1,7 +1,10 @@
 {% extends "app_base.html" %}{% block title %}{{ compte.username }}{% endblock %}
 {% block banner %}
 <section class="page-banner">
+  <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+  <span class="avatar" aria-hidden="true" style="width:88px;height:88px;font-size:32px;overflow:hidden;border:3px solid rgba(208,160,109,.55)">{% if compte.photo %}<img src="{{ compte.photo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block">{% else %}{{ compte.initiales }}{% endif %}</span>
   <div><span class="eyebrow">{{ compte.get_role_display }}</span><h1>{{ compte.get_full_name|default:compte.username }}</h1><p>@{{ compte.username }} · inscrit le {{ compte.date_joined|date:"d/m/Y" }}</p></div>
+  </div>
   <div class="actions">
     {% if peut_gerer %}<a class="btn primary" href="{% url 'utilisateurs:utilisateur_modifier' compte.pk %}">Modifier</a>
     {% else %}<span class="chip soft">Compte technique protégé</span>{% endif %}

@@ -670,3 +670,62 @@ html.film-on,html.film-on body{overflow:hidden}
 .programme-modal[hidden]{display:none}.programme-modal-inner{position:relative;background:var(--color-background);max-width:480px;width:100%;padding:28px;box-shadow:0 12px 40px rgb(0 0 0 / .2)}
 .programme-modal-close{position:absolute;right:14px;top:10px;border:0;background:none;font-size:24px;cursor:pointer}.programme-modal form{display:grid;gap:12px}.programme-modal form .row-actions{display:flex;gap:8px;flex-wrap:wrap}
 @media(max-width:700px){.programme-filters{align-items:stretch}.programme-filters label{flex:1 1 180px}.programme-filters #programme-create{margin-left:0}.programme-timeline-viewport{padding:22px 16px 18px}.programme-timeline{padding-inline:72px}.programme-item{flex-basis:190px;width:190px}.programme-time{width:170px}.programme-export{margin-top:24px}}
+
+/* ---- Liste des utilisateurs (sans défilement horizontal) ---- */
+.users-filters{grid-template-columns:1.6fr 1fr 1fr auto;margin-bottom:20px}
+.role-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.role-tab{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:var(--radius-pill);border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);font-size:13.5px;font-weight:500;text-decoration:none;transition:background .2s,border-color .2s}
+.role-tab span{font-size:12px;font-weight:600;min-width:22px;padding:1px 7px;border-radius:var(--radius-pill);background:var(--color-background);color:var(--color-text-muted);text-align:center}
+.role-tab:hover{border-color:var(--color-border-strong);background:#FBF6F1}
+.role-tab.is-active{background:var(--color-primary);border-color:var(--color-primary);color:var(--color-on-dark)}
+.role-tab.is-active span{background:rgba(247,243,235,.18);color:var(--color-on-dark)}
+.users-count{margin:0 0 12px}
+.table-wrap.users-wrap{overflow:clip;container-type:inline-size}
+.table.users-table{display:table;white-space:normal;table-layout:auto}
+.users-table th,.users-table td{padding:13px 14px;white-space:normal}
+.users-table th{white-space:nowrap}
+.users-table td.u-main{width:40%}
+.users-table td.u-actions{width:1%}
+.users-table .row-actions{justify-content:flex-end;flex-wrap:wrap;gap:4px}
+.users-table .row-actions .btn{padding-inline:10px}
+.user-cell{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.user-cell .avatar{font-family:var(--font-body);font-size:13px;letter-spacing:.04em}
+.user-id{display:flex;flex-direction:column;line-height:1.3;min-width:0}
+.user-id a{color:inherit;text-decoration:none}
+.user-id strong{font-weight:600;color:var(--color-primary-dark)}
+.user-id a:hover strong{text-decoration:underline;text-underline-offset:3px}
+.user-id small{font-size:12.5px;font-weight:400;color:var(--color-text-muted)}
+.users-table .user-id .user-mail{font-size:13px;font-weight:400;color:var(--color-text);overflow-wrap:anywhere}
+.users-table .user-id .user-mail:hover{text-decoration:underline}
+.u-stack{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.u-activity{display:flex;flex-direction:column;gap:2px;font-size:13.5px;white-space:nowrap}
+.u-activity b{font-variant-numeric:tabular-nums;font-weight:600}
+.user-last{display:block;font-size:12px}
+.users-table tr.is-inactive .user-cell{opacity:.6}
+.users-empty{text-align:center;padding:40px 20px!important;color:var(--color-text-muted)}
+/* Conteneur étroit : chaque ligne devient une carte (aucun défilement horizontal) */
+@container (max-width:760px){
+  .users-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .users-table,.users-table tbody{display:block}
+  .users-table tbody tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 16px;padding:16px 18px;border-bottom:1px solid var(--color-border)}
+  .users-table tbody tr:last-child{border-bottom:0}
+  .users-table td{display:block;padding:0;border:0;width:auto!important}
+  .users-table td.u-main,.users-table td.u-actions,.users-table td.users-empty{grid-column:1/-1}
+  .users-table td[data-label]::before{content:attr(data-label);display:block;margin-bottom:4px;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--color-text-muted)}
+  .users-table .row-actions{justify-content:flex-start;padding-top:10px;border-top:1px dashed var(--color-border)}
+}
+@container (min-width:1100px){.users-table .row-actions{flex-wrap:nowrap}}
+@container (max-width:440px){.users-table tbody tr{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.users-table td[data-label="Inscrit le"]{grid-column:1/-1}}
+@media (max-width:900px){.users-filters{grid-template-columns:1fr 1fr}}
+/* couleurs par rôle (pastille + avatar) */
+.role-pill{display:inline-flex;align-items:center;padding:4px 11px;border-radius:var(--radius-pill);font-size:12px;font-weight:600;white-space:nowrap;background:var(--info-bg);color:var(--info)}
+.role-pill.role-admin{background:var(--color-primary);color:var(--color-on-dark)}
+.role-pill.role-organisateur{background:var(--color-accent-soft);color:var(--color-accent-text)}
+.role-pill.role-participant{background:var(--ok-bg);color:var(--ok)}
+.role-pill.role-prestataire{background:var(--color-soft-pink);color:var(--color-primary)}
+.role-pill.role-client{background:var(--info-bg);color:var(--info)}
+.avatar.role-admin{background:var(--color-primary);color:var(--color-accent)}
+.avatar.role-organisateur{background:var(--color-accent-soft);color:var(--color-accent-text)}
+.avatar.role-participant{background:var(--ok-bg);color:var(--ok)}
+.avatar.role-prestataire{background:var(--color-soft-pink);color:var(--color-primary)}
+.avatar.role-client{background:var(--info-bg);color:var(--info)}

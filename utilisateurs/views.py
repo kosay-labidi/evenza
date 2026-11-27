@@ -7,7 +7,7 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db import IntegrityError, OperationalError, connection, transaction
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
@@ -217,17 +217,34 @@ class UtilisateurListView(AdminRequiredMixin, ListView):
     template_name = "utilisateurs/utilisateur_list.html"
     paginate_by = 20
 
-    def get_queryset(self):
-        qs = Utilisateur.objects.annotate(nb_evenements=Count("evenements_organises", distinct=True),
-                                          nb_inscriptions=Count("inscriptions", distinct=True)).order_by("username")
+    TRIS = {
+        "nom": ("Nom (A → Z)", ("last_name", "first_name", "username")),
+        "identifiant": ("Identifiant", ("username",)),
+        "recents": ("Plus récents", ("-date_joined",)),
+        "connexion": ("Dernière connexion", (F("last_login").desc(nulls_last=True), "username")),
+        "role": ("Rôle", ("role", "username")),
+    }
+
+    def get_base_queryset(self):
+        """Recherche + statut, sans le filtre de rôle : sert aussi au décompte par rôle des onglets."""
+        qs = Utilisateur.objects.all()
         q = self.request.GET.get("q", "").strip()
         if q:
             qs = qs.filter(Q(username__icontains=q) | Q(first_name__icontains=q)
                            | Q(last_name__icontains=q) | Q(email__icontains=q))
+        statut = self.request.GET.get("statut")
+        if statut in ("actif", "inactif"):
+            qs = qs.filter(is_active=statut == "actif")
+        return qs
+
+    def get_queryset(self):
+        qs = self.get_base_queryset()
         role = self.request.GET.get("role")
         if role:
             qs = qs.filter(role=role)
-        return qs
+        tri = self.TRIS.get(self.request.GET.get("tri"), self.TRIS["identifiant"])[1]
+        return qs.annotate(nb_evenements=Count("evenements_organises", distinct=True),
+                           nb_inscriptions=Count("inscriptions", distinct=True)).order_by(*tri)
 
     def paginate_queryset(self, queryset, page_size):
         """Numéro de page hors limites ou invalide : dernière / première page au lieu d'une erreur 404."""
@@ -240,10 +257,21 @@ class UtilisateurListView(AdminRequiredMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         for compte in ctx["object_list"]:
             compte.gerable = peut_gerer_compte(self.request.user, compte)
-        ctx["q"] = self.request.GET.get("q", "")
+        get = self.request.GET
+        ctx["q"] = get.get("q", "")
+        ctx["role_actif"] = get.get("role", "")
+        ctx["statut"] = get.get("statut", "")
+        ctx["tri"] = get.get("tri", "") if get.get("tri") in self.TRIS else "identifiant"
+        ctx["tris"] = [(cle, libelle) for cle, (libelle, _) in self.TRIS.items()]
         ctx["roles"] = Utilisateur.Role.choices
-        params = self.request.GET.copy(); params.pop("page", None)
+        # Onglets de rôle avec effectifs (selon la recherche et le statut en cours).
+        effectifs = dict(self.get_base_queryset().order_by().values_list("role").annotate(n=Count("pk")))
+        ctx["onglets_roles"] = [(val, nom, effectifs.get(val, 0)) for val, nom in Utilisateur.Role.choices]
+        ctx["total_tous_roles"] = sum(effectifs.values())
+        params = get.copy(); params.pop("page", None)
         ctx["filtres"] = params.urlencode()
+        sans_role = params.copy(); sans_role.pop("role", None)
+        ctx["filtres_sans_role"] = sans_role.urlencode()
         return ctx
 
 

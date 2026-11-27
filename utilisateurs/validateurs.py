@@ -72,3 +72,22 @@ def valider_mdp_infos_personnelles(mot_de_passe, user):
             if len(morceau) >= LONGUEUR_MIN_INFO and (morceau in mdp or morceau in mdp_compact):
                 raise ValidationError("Le mot de passe ne doit pas contenir votre identifiant, votre nom ou votre "
                                       "adresse e-mail.", code="mdp_infos_personnelles")
+
+
+# ---------------------------------------------------------------- photo de profil
+PHOTO_TAILLE_MAX_MO = 2
+PHOTO_EXTENSIONS = ("jpg", "jpeg", "png", "webp")
+
+
+def valider_photo(fichier):
+    """Photo de profil : JPG, PNG ou WebP, 2 Mo au plus. (Le contenu est en plus vérifié par Pillow
+    via ImageField : un fichier renommé en .jpg qui n'est pas une image est refusé.)"""
+    if not fichier:
+        return fichier
+    extension = fichier.name.rsplit(".", 1)[-1].lower() if "." in fichier.name else ""
+    if extension not in PHOTO_EXTENSIONS:
+        raise ValidationError("Format non pris en charge : choisissez une image JPG, PNG ou WebP.",
+                              code="photo_format")
+    if fichier.size > PHOTO_TAILLE_MAX_MO * 1024 * 1024:
+        raise ValidationError(f"La photo ne doit pas dépasser {PHOTO_TAILLE_MAX_MO} Mo.", code="photo_trop_lourde")
+    return fichier
