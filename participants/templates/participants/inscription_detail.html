@@ -1,0 +1,31 @@
+{% extends "detail_base.html" %}{% block title %}Inscription{% endblock %}
+{% block eyebrow %}{{ object.evenement }}{% endblock %}
+{% block heading %}{{ object.participant }}{% endblock %}
+{% block intro_wrap %}<p><span class="badge {{ object.statut|lower }}">{{ object.get_statut_display }}</span>{% if object.present %} <span class="badge confirmee">Entrée validée</span>{% endif %}</p>{% endblock %}
+{% block page_actions %}
+  {% if object.present %}<form method="post" action="{% url 'participants:inscription_checkin_annuler' object.pk %}" class="inline" onsubmit="return confirm('Annuler l’entrée de ce participant ?')">{% csrf_token %}<button class="btn ghost" type="submit">Annuler le check-in</button></form>{% endif %}
+  {% if object.statut != "ANNULEE" %}<form method="post" action="{% url 'participants:inscription_annuler' object.pk %}" class="inline" onsubmit="return confirm('Annuler cette inscription ? Les places seront libérées.')">{% csrf_token %}<button class="btn danger" type="submit">Annuler l'inscription</button></form>{% endif %}
+  <a class="btn ghost" href="{{ object.get_absolute_url }}">Voir le billet</a>
+  <a class="btn ghost" href="{% url 'participants:liste' object.evenement_id %}">← Participants de l'événement</a>
+{% endblock %}
+{% block detail %}
+<div class="panel-head"><h2>Réservation</h2></div>
+<ul class="tlist">
+  <li><span class="muted">Participant</span><b>{{ object.participant }}{% if object.participant.email %} · {{ object.participant.email }}{% endif %}</b></li>
+  <li><span class="muted">Événement</span><b><a href="{{ object.evenement.get_absolute_url }}">{{ object.evenement.titre }}</a> · {{ object.evenement.date_debut|date:"d/m/Y H:i" }}</b></li>
+  <li><span class="muted">Lieu</span><b>{{ object.evenement.lieu.nom }}</b></li>
+  <li><span class="muted">Billet</span><b>{% if object.type_billet %}{{ object.type_billet.nom }}{% else %}Entrée{% endif %} × {{ object.quantite }}</b></li>
+  <li><span class="muted">Montant</span><b>{% if object.montant %}{{ object.montant|floatformat:2 }} DT{% else %}Gratuit{% endif %}</b></li>
+  <li><span class="muted">Inscrit le</span><b>{{ object.date_inscription|date:"d/m/Y H:i" }}</b></li>
+  <li><span class="muted">Code du billet</span><b><code>{{ object.code_court }}</code></b></li>
+  <li><span class="muted">Entrée</span><b>{% if object.present %}Validée{% else %}Pas encore validée{% endif %}</b></li>
+</ul>
+{% endblock %}
+{% block related %}
+{% if object.avis %}
+<section class="panel">
+  <div class="panel-head"><h2>Avis du participant</h2><span class="muted small">{{ object.avis.note }}/5</span></div>
+  <p>{{ object.avis.commentaire|default:"Aucun commentaire." }}</p>
+</section>
+{% endif %}
+{% endblock %}

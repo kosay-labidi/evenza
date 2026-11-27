@@ -79,9 +79,11 @@ class CrudRessourcesTests(TestCase):
 
     def test_modification_ressource(self):
         self.client.force_login(self.org)
-        r = self.client.post(self.url("modifier", self.ecran.pk), {"nom": "Écran géant", "type": "MATERIEL", "quantite": 3})
+        r = self.client.post(self.url("modifier", self.ecran.pk),
+                             {"nom": "Écran géant", "type": "MATERIEL", "quantite": 3, "etat": "MAINTENANCE"})
         self.assertRedirects(r, self.url("detail", self.ecran.pk))
-        self.ecran.refresh_from_db(); self.assertEqual((self.ecran.nom, self.ecran.quantite), ("Écran géant", 3))
+        self.ecran.refresh_from_db()
+        self.assertEqual((self.ecran.nom, self.ecran.quantite, self.ecran.etat), ("Écran géant", 3, "MAINTENANCE"))
         self.assertIn("La ressource « Écran géant » a été modifiée.", self.msgs(r))
 
     def test_suppression_ressource_libre(self):
@@ -127,3 +129,51 @@ class CrudRessourcesTests(TestCase):
         self.assertRedirects(r, self.evt.get_absolute_url())
         self.assertFalse(Affectation.objects.filter(pk=self.aff.pk).exists())
         self.assertTrue(any("a été supprimée" in m for m in self.msgs(r)))
+
+    # ---- US 6.1 : création ----
+    def test_creation_ressource(self):
+        self.client.force_login(self.org)
+        r = self.client.post(self.url("creer"), {"nom": "Sono", "type": "MATERIEL", "quantite": 4, "etat": "DISPONIBLE"})
+        self.assertRedirects(r, self.url("liste"))
+        res = Ressource.objects.get(nom="Sono")
+        self.assertEqual((res.quantite, res.etat), (4, "DISPONIBLE"))
+        self.assertIn("La ressource « Sono » a été ajoutée.", self.msgs(r))
+
+    def test_creation_champs_obligatoires_et_quantite(self):
+        self.client.force_login(self.org)
+        avant = Ressource.objects.count()
+        r = self.client.post(self.url("creer"), {"nom": "", "type": "", "quantite": "", "etat": "DISPONIBLE"})
+        self.assertEqual(r.status_code, 200)
+        for champ in ("nom", "type", "quantite"):
+            self.assertIn(champ, r.context["form"].errors)
+        for q in (0, -3):
+            r = self.client.post(self.url("creer"), {"nom": "X", "type": "SALLE", "quantite": q, "etat": "DISPONIBLE"})
+            self.assertIn("quantite", r.context["form"].errors)
+        self.assertEqual(Ressource.objects.count(), avant)
+
+    def test_creation_interdite_au_participant(self):
+        self.client.force_login(self.part)
+        self.assertEqual(self.client.get(self.url("creer")).status_code, 403)
+        self.assertEqual(self.client.post(self.url("creer"), {"nom": "X", "type": "SALLE", "quantite": 1,
+                                                             "etat": "DISPONIBLE"}).status_code, 403)
+
+    # ---- US 6.2 : recherche et filtres ----
+    def test_recherche_et_filtres(self):
+        self.client.force_login(self.org)
+        Ressource.objects.create(nom="Salle Carthage", type="SALLE", quantite=1, etat="HORS_SERVICE")
+        noms = lambda **p: sorted(x.nom for x in self.client.get(self.url("liste"), p).context["object_list"])
+        self.assertEqual(len(noms()), 3)
+        self.assertEqual(noms(q="cran"), ["Écran"])
+        self.assertEqual(noms(type="VEHICULE"), ["Minibus"])
+        self.assertEqual(noms(etat="HORS_SERVICE"), ["Salle Carthage"])
+        self.assertEqual(noms(type="SALLE", etat="DISPONIBLE"), [])
+        self.assertEqual(noms(q="salle", type="SALLE", etat="HORS_SERVICE"), ["Salle Carthage"])
+        self.assertEqual(len(noms(type="N'IMPORTE QUOI")), 3)   # valeur inconnue : filtre ignoré, pas d'erreur
+
+    # ---- état : une ressource indisponible ne peut pas être affectée ----
+    def test_ressource_indisponible_non_affectable(self):
+        from .forms import AffectationForm
+        hs = Ressource.objects.create(nom="Vieux projecteur", type="MATERIEL", quantite=1, etat="HORS_SERVICE")
+        choix = set(AffectationForm().fields["ressource"].queryset)
+        self.assertIn(self.ecran, choix)
+        self.assertNotIn(hs, choix)

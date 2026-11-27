@@ -1,2 +1,3 @@
-{% extends "form_base.html" %}{% block title %}Donner un avis{% endblock %}
-{% block eyebrow %}{{ inscription.evenement }}{% endblock %}{% block heading %}Votre avis{% endblock %}{% block submit %}Envoyer{% endblock %}
+{% extends "form_base.html" %}{% block title %}{% if object %}Modifier mon avis{% else %}Donner un avis{% endif %}{% endblock %}
+{% block eyebrow %}{{ inscription.evenement }}{% endblock %}{% block heading %}{% if object %}Modifier mon avis{% else %}Votre avis{% endif %}{% endblock %}{% block submit %}{% if object %}Enregistrer{% else %}Envoyer{% endif %}{% endblock %}
+{% block cancel %}{% url 'participants:mes_inscriptions' %}{% endblock %}

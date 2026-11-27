@@ -22,6 +22,8 @@
   <td class="row-actions">
     <a class="btn ghost sm" href="{% url 'participants:liste' e.pk %}">Inscrits</a>
     <a class="btn ghost sm" href="{% url 'participants:checkin' e.pk %}">Check-in</a>
+    <a class="btn ghost sm" href="{% url 'participants:typebillet_liste' %}?evenement={{ e.pk }}">Billets</a>
+    <a class="btn ghost sm" href="{% url 'participants:avis_liste' %}?evenement={{ e.pk }}">Avis</a>
     <a class="btn ghost sm" href="{% url 'participants:type_creer' e.pk %}">+ Billet</a>
   </td>
 </tr>{% endfor %}

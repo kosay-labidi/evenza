@@ -1,8 +1,25 @@
-{% extends "confirm_base.html" %}{% block title %}Supprimer un utilisateur{% endblock %}
-{% block details %}
-{% if nb_evenements or nb_inscriptions %}
-<div class="msg warning" style="text-align:left"><span>Attention : seront aussi supprimés
-  {% if nb_evenements %}<b>{{ nb_evenements }} événement{{ nb_evenements|pluralize }}</b> organisé{{ nb_evenements|pluralize }} par ce compte (avec leurs séances, billets et inscriptions){% endif %}{% if nb_evenements and nb_inscriptions %} et {% endif %}{% if nb_inscriptions %}<b>{{ nb_inscriptions }} inscription{{ nb_inscriptions|pluralize }}</b>{% endif %}.
-  Pour garder ces données, désactivez plutôt le compte (« Modifier » → décocher « Compte actif »).</span></div>
-{% endif %}
+{% extends "app_base.html" %}{% block title %}Supprimer un utilisateur{% endblock %}
+{# Même structure et mêmes classes que templates/confirm_base.html, avec un état « suppression refusée ». #}
+{% block banner %}<section class="page-banner"><div class="container"><span class="eyebrow">Confirmation</span><h1>Supprimer « {{ object }} » ?</h1></div></section>{% endblock %}
+{% block content %}
+<section class="card narrow center form-card">
+  <div class="icon-badge danger" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></div>
+  {% if refus %}
+  <div class="msg error" role="alert">{{ refus }}</div>
+  {% else %}
+  <p class="lead" style="margin-inline:auto">Cette action est définitive : « {{ object }} » sera supprimé.</p>
+  {% if nb_evenements or nb_inscriptions %}
+  <div class="msg warning" style="text-align:left"><span>Attention : seront aussi supprimés
+    {% if nb_evenements %}<b>{{ nb_evenements }} événement{{ nb_evenements|pluralize }}</b> organisé{{ nb_evenements|pluralize }} par ce compte (avec leurs séances, billets et affectations){% endif %}{% if nb_evenements and nb_inscriptions %} et {% endif %}{% if nb_inscriptions %}<b>{{ nb_inscriptions }} inscription{{ nb_inscriptions|pluralize }}</b> de ce compte{% endif %}.
+    {% if object.is_active %}Pour garder ces données, <a href="{% url 'utilisateurs:utilisateur_desactiver' object.pk %}">désactivez plutôt le compte</a>.{% else %}Ce compte est déjà désactivé : ses données sont conservées tant qu'il n'est pas supprimé.{% endif %}</span></div>
+  {% elif object.is_active %}
+  <p class="muted small">Pour seulement bloquer l'accès sans rien effacer, <a href="{% url 'utilisateurs:utilisateur_desactiver' object.pk %}">désactivez plutôt le compte</a>.</p>
+  {% endif %}
+  {% endif %}
+  <form method="post" class="actions center-actions">{% csrf_token %}
+    {% if not refus %}<button class="btn danger" type="submit">Oui, supprimer</button>
+    {% elif object.is_active and object.pk != user.pk %}<a class="btn primary" href="{% url 'utilisateurs:utilisateur_desactiver' object.pk %}">Désactiver plutôt</a>{% endif %}
+    <a class="btn ghost" href="{% url 'utilisateurs:utilisateur_detail' object.pk %}">{% if refus %}← Retour{% else %}Annuler{% endif %}</a>
+  </form>
+</section>
 {% endblock %}

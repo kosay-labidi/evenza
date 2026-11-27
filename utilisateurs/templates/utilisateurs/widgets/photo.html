@@ -1,0 +1,41 @@
+{# Champ « photo de profil » : aperçu rond + choix du fichier + suppression de la photo actuelle. #}
+<div class="photo-field" data-photo-field>
+  <span class="photo-preview" data-photo-preview>{% if widget.is_initial %}<img src="{{ widget.value.url }}" alt="Photo de profil actuelle">{% else %}<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>{% endif %}</span>
+  <div class="photo-ctrl">
+    <input type="{{ widget.type }}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>
+    <small class="muted">JPG, PNG ou WebP · 2 Mo maximum{% if not widget.is_initial %} · facultatif{% endif %}</small>
+    {% if widget.is_initial and not widget.required %}<label class="photo-clear"><input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}"{% if widget.attrs.disabled %} disabled{% endif %}> Supprimer la photo actuelle</label>{% endif %}
+  </div>
+</div>
+<style>
+.photo-field{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.photo-preview{width:84px;height:84px;flex:none;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:var(--color-accent-soft,#F4E7D7);color:var(--color-accent-text,#8A5F33);border:1px solid var(--color-border,#E9E0D9)}
+.photo-preview img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-ctrl{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
+.photo-ctrl input[type=file]{max-width:100%;font-size:14px;border:0;padding:0;background:none;min-height:0}
+.photo-ctrl input[type=file]::file-selector-button{margin-right:12px;padding:8px 16px;border-radius:999px;border:1px solid var(--color-border-strong,#D9CCC2);background:var(--color-surface,#FFFDFC);color:var(--color-primary,#512D3B);font:600 13px/1.2 inherit;cursor:pointer}
+.photo-ctrl input[type=file]::file-selector-button:hover{background:var(--color-background,#F7F3EB)}
+.photo-clear{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;color:var(--color-text-muted,#796D72);cursor:pointer}
+.photo-clear input{width:auto;min-height:0}
+.photo-field.is-cleared .photo-preview img{opacity:.25}
+</style>
+<script>
+(() => {
+  const bloc = document.currentScript.previousElementSibling.previousElementSibling;
+  const input = bloc.querySelector('input[type=file]'), apercu = bloc.querySelector('[data-photo-preview]');
+  const effacer = bloc.querySelector('.photo-clear input');
+  const initial = apercu.innerHTML;
+  input.addEventListener('change', () => {
+    const f = input.files && input.files[0];
+    if (!f) { apercu.innerHTML = initial; return; }
+    if (effacer) { effacer.checked = false; bloc.classList.remove('is-cleared'); }
+    const img = document.createElement('img'); img.alt = 'Aperçu de la nouvelle photo';
+    img.src = URL.createObjectURL(f); img.onload = () => URL.revokeObjectURL(img.src);
+    apercu.replaceChildren(img);
+  });
+  if (effacer) effacer.addEventListener('change', () => {
+    bloc.classList.toggle('is-cleared', effacer.checked);
+    if (effacer.checked) { input.value = ''; apercu.innerHTML = initial; }
+  });
+})();
+</script>

@@ -1,21 +1,49 @@
 {% extends "app_base.html" %}{% block title %}Utilisateurs{% endblock %}
 {% block banner %}{% include "partials/banner.html" with sur_titre="Comptes" titre="Utilisateurs" texte="Tous les comptes de la plateforme : participants, organisateurs, prestataires, clients et administrateurs." %}{% endblock %}
 {% block content %}
+<style>
+.icon-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:nowrap}
+.icon-btn{width:36px;height:36px;flex:none;display:inline-grid;place-items:center;border-radius:50%;border:1px solid var(--color-border-strong);background:var(--color-surface);color:var(--color-primary);text-decoration:none;transition:background .2s,color .2s,border-color .2s}
+.icon-btn:hover{background:var(--color-primary);border-color:var(--color-primary);color:var(--color-on-dark)}
+.icon-btn:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+.icon-btn.is-warn{color:var(--warn)}.icon-btn.is-warn:hover{background:var(--warn);border-color:var(--warn);color:#fff}
+.icon-btn.is-ok{color:var(--ok)}.icon-btn.is-ok:hover{background:var(--ok);border-color:var(--ok);color:#fff}
+.icon-btn.is-danger{color:var(--err)}.icon-btn.is-danger:hover{background:var(--err);border-color:var(--err);color:#fff}
+.icon-btn.is-locked{color:var(--color-text-muted);border-style:dashed;cursor:help}.icon-btn.is-locked:hover{background:var(--color-surface);color:var(--color-text-muted);border-color:var(--color-border-strong)}
+@container (max-width:760px){.icon-actions{justify-content:flex-start;padding-top:10px;border-top:1px dashed var(--color-border)}}
+</style>
 <div class="sec-head" style="margin-top:0"><h2>Liste</h2><a class="btn primary" href="{% url 'utilisateurs:utilisateur_creer' %}">+ Nouvel utilisateur</a></div>
-<form class="filters" method="get" role="search" style="grid-template-columns:1.6fr 1fr auto">
+
+<form class="filters users-filters" method="get" role="search">
+  {% if role_actif %}<input type="hidden" name="role" value="{{ role_actif }}">{% endif %}
   <input type="search" name="q" value="{{ q }}" placeholder="Nom, identifiant ou e-mail…" aria-label="Rechercher un utilisateur">
-  <select name="role" aria-label="Rôle"><option value="">Tous les rôles</option>{% for val, nom in roles %}<option value="{{ val }}" {% if request.GET.role == val %}selected{% endif %}>{{ nom }}</option>{% endfor %}</select>
+  <select name="statut" aria-label="Statut">
+    <option value="">Tous les statuts</option>
+    <option value="actif" {% if statut == "actif" %}selected{% endif %}>Actifs</option>
+    <option value="inactif" {% if statut == "inactif" %}selected{% endif %}>Désactivés</option>
+  </select>
+  <select name="tri" aria-label="Trier par">{% for cle, libelle in tris %}<option value="{{ cle }}" {% if tri == cle %}selected{% endif %}>Tri : {{ libelle }}</option>{% endfor %}</select>
   <button class="btn primary sm">Filtrer</button>
 </form>
-<div class="table-wrap"><table class="table"><thead><tr><th>Identifiant</th><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Événements</th><th>Inscriptions</th><th>Statut</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
-{% for u in object_list %}<tr>
-  <td><a href="{% url 'utilisateurs:utilisateur_detail' u.pk %}">{{ u.username }}</a></td>
-  <td>{{ u.get_full_name|default:"—" }}</td><td>{{ u.email|default:"—" }}</td>
-  <td><span class="chip soft">{{ u.get_role_display }}</span></td>
-  <td>{{ u.nb_evenements }}</td><td>{{ u.nb_inscriptions }}</td>
-  <td>{% if u.is_active %}<span class="badge confirmee">Actif</span>{% else %}<span class="badge annulee">Désactivé</span>{% endif %}</td>
-  <td class="row-actions"><a class="btn ghost sm" href="{% url 'utilisateurs:utilisateur_modifier' u.pk %}">Modifier</a>{% if u.pk != user.pk %}<a class="btn ghost sm danger-text" href="{% url 'utilisateurs:utilisateur_supprimer' u.pk %}">Supprimer</a>{% endif %}</td>
-</tr>{% empty %}<tr><td colspan="8" class="muted">Aucun utilisateur ne correspond.</td></tr>{% endfor %}
+
+<nav class="role-tabs" aria-label="Filtrer par rôle">
+  <a href="?{{ filtres_sans_role }}" class="role-tab{% if not role_actif %} is-active{% endif %}"{% if not role_actif %} aria-current="true"{% endif %}>Tous <span>{{ total_tous_roles }}</span></a>
+  {% for val, nom, n in onglets_roles %}<a href="?{% if filtres_sans_role %}{{ filtres_sans_role }}&{% endif %}role={{ val }}" class="role-tab role-{{ val|lower }}{% if role_actif == val %} is-active{% endif %}"{% if role_actif == val %} aria-current="true"{% endif %}>{{ nom }} <span>{{ n }}</span></a>{% endfor %}
+</nav>
+
+<p class="muted small users-count">{{ page_obj.paginator.count }} utilisateur{{ page_obj.paginator.count|pluralize }}{% if q %} pour « {{ q }} »{% endif %}{% if q or statut or role_actif %} · <a href="?">Réinitialiser les filtres</a>{% endif %}</p>
+
+<div class="table-wrap users-wrap"><table class="table users-table"><thead><tr><th>Utilisateur</th><th>Rôle &amp; statut</th><th>Activité</th><th>Inscrit le</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
+{% for u in object_list %}<tr{% if not u.is_active %} class="is-inactive"{% endif %}>
+  <td class="u-main"><div class="user-cell">
+    <span class="avatar role-{{ u.role|lower }}" aria-hidden="true"{% if u.photo %} style="overflow:hidden"{% endif %}>{% if u.photo %}<img src="{{ u.photo.url }}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">{% else %}{{ u.initiales }}{% endif %}</span>
+    <span class="user-id"><a href="{% url 'utilisateurs:utilisateur_detail' u.pk %}"><strong>{{ u.get_full_name|default:u.username }}</strong></a><small>@{{ u.username }}{% if u.pk == user.pk %} · vous{% endif %}{% if u.is_superuser %} · superutilisateur{% endif %}</small>{% if u.email %}<a class="user-mail" href="mailto:{{ u.email }}">{{ u.email }}</a>{% endif %}</span>
+  </div></td>
+  <td data-label="Rôle"><div class="u-stack"><span class="role-pill role-{{ u.role|lower }}">{{ u.get_role_display }}</span>{% if u.is_active %}<span class="badge confirmee">Actif</span>{% else %}<span class="badge annulee">Désactivé</span>{% endif %}</div></td>
+  <td data-label="Activité"><div class="u-activity"><span{% if not u.nb_evenements %} class="muted"{% endif %}><b>{{ u.nb_evenements }}</b> événement{{ u.nb_evenements|pluralize }}</span><span{% if not u.nb_inscriptions %} class="muted"{% endif %}><b>{{ u.nb_inscriptions }}</b> inscription{{ u.nb_inscriptions|pluralize }}</span></div></td>
+  <td data-label="Inscrit le"><span title="Inscrit le {{ u.date_joined|date:'d/m/Y à H:i' }}">{{ u.date_joined|date:"d/m/Y" }}</span><small class="muted user-last">{% if u.last_login %}Vu il y a {{ u.last_login|timesince }}{% else %}Jamais connecté{% endif %}</small></td>
+  <td class="u-actions"><div class="icon-actions">{% if u.gerable %}<a class="icon-btn" href="{% url 'utilisateurs:utilisateur_modifier' u.pk %}" title="Modifier" aria-label="Modifier {{ u.username }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></a>{% else %}<span class="icon-btn is-locked" title="Compte technique : géré uniquement par un superutilisateur" aria-label="Compte protégé" role="img"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>{% endif %}{% if u.gerable and u.pk != user.pk %}{% if u.is_active %}<a class="icon-btn is-warn" href="{% url 'utilisateurs:utilisateur_desactiver' u.pk %}" title="Désactiver" aria-label="Désactiver {{ u.username }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-3.9 3.1-6 7-6s7 2.1 7 6"/><path d="m17 8 5 5m0-5-5 5"/></svg></a>{% else %}<a class="icon-btn is-ok" href="{% url 'utilisateurs:utilisateur_reactiver' u.pk %}" title="Réactiver" aria-label="Réactiver {{ u.username }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-3.9 3.1-6 7-6s7 2.1 7 6"/><path d="m16 11 2 2 4-4"/></svg></a>{% endif %}<a class="icon-btn is-danger" href="{% url 'utilisateurs:utilisateur_supprimer' u.pk %}" title="Supprimer" aria-label="Supprimer {{ u.username }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></a>{% endif %}</div></td>
+</tr>{% empty %}<tr><td colspan="5" class="users-empty">Aucun utilisateur ne correspond.{% if q or statut or role_actif %} <a href="?">Réinitialiser les filtres</a>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
 {% include "partials/pagination.html" %}
 {% endblock %}

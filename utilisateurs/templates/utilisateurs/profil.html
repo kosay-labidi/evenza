@@ -1,2 +1,10 @@
 {% extends "form_base.html" %}{% block title %}Mon profil{% endblock %}
 {% block eyebrow %}{{ user.get_role_display }}{% endblock %}{% block heading %}Mon profil{% endblock %}
+{% block cancel %}{% url 'core:dashboard' %}{% endblock %}
+{% block content %}{{ block.super }}
+<section class="card narrow form-card">
+  <h2 class="h3">Sécurité du compte</h2>
+  <p class="muted">Identifiant : <b>{{ user.username }}</b>. Le rôle et les droits d'accès sont gérés par l'agence.</p>
+  <div class="actions"><a class="btn outline" href="{% url 'utilisateurs:password_change' %}">Changer mon mot de passe</a></div>
+</section>
+{% endblock %}

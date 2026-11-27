@@ -1,0 +1,33 @@
+{% extends "detail_base.html" %}{% block title %}{{ object.nom }}{% endblock %}
+{% block eyebrow %}{{ object.evenement }}{% endblock %}
+{% block heading %}{{ object.nom }}{% endblock %}
+{% block intro_wrap %}<p>{{ object.description|default:"Aucune description." }}</p>{% endblock %}
+{% block page_actions %}
+  <a class="btn primary" href="{% url 'participants:typebillet_modifier' object.pk %}">Modifier</a>
+  <a class="btn ghost danger-text" href="{% url 'participants:typebillet_supprimer' object.pk %}">Supprimer</a>
+  <a class="btn ghost" href="{% url 'participants:typebillet_liste' %}">← Liste</a>
+{% endblock %}
+{% block detail %}
+<div class="panel-head"><h2>Caractéristiques</h2></div>
+<ul class="tlist">
+  <li><span class="muted">Événement</span><b><a href="{{ object.evenement.get_absolute_url }}">{{ object.evenement.titre }}</a> · {{ object.evenement.date_debut|date:"d/m/Y H:i" }}</b></li>
+  <li><span class="muted">Prix</span><b>{% if object.prix %}{{ object.prix|floatformat:2 }} DT{% else %}Gratuit{% endif %}</b></li>
+  <li><span class="muted">Quota</span><b>{% if object.quota is None %}Illimité{% else %}{{ object.quota }}{% endif %}</b></li>
+  <li><span class="muted">Billets vendus</span><b>{{ object.vendus }}</b></li>
+  <li><span class="muted">Billets restants</span><b>{% if object.restants is None %}—{% else %}{{ object.restants }}{% endif %}</b></li>
+</ul>
+{% endblock %}
+{% block related %}
+<section class="panel">
+  <div class="panel-head"><h2>Réservations</h2><span class="muted small">{{ inscriptions|length }}</span></div>
+  <div class="table-wrap flat"><table class="table"><thead><tr><th>Participant</th><th>Places</th><th>Montant</th><th>Statut</th><th>Inscrit le</th></tr></thead><tbody>
+  {% for i in inscriptions %}<tr>
+    <td><a href="{% url 'participants:inscription_detail' i.pk %}">{{ i.participant }}</a></td>
+    <td>× {{ i.quantite }}</td>
+    <td>{% if i.montant %}{{ i.montant|floatformat:2 }} DT{% else %}Gratuit{% endif %}</td>
+    <td><span class="badge {{ i.statut|lower }}">{{ i.get_statut_display }}</span></td>
+    <td>{{ i.date_inscription|date:"d/m/Y H:i" }}</td>
+  </tr>{% empty %}<tr><td colspan="5" class="muted">Aucune réservation pour ce type de billet.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}

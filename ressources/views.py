@@ -17,13 +17,38 @@ def _event_return_url(request, evenement):
 
 
 class RessourceListView(OrganisateurRequiredMixin, ListView):
+    """Catalogue : recherche par nom, filtres par type et par état."""
     model = Ressource
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        q = self.request.GET.get("q", "").strip()
+        type_ = self.request.GET.get("type", "")
+        etat = self.request.GET.get("etat", "")
+        if q:
+            qs = qs.filter(nom__icontains=q)
+        if type_ in Ressource.Type.values:
+            qs = qs.filter(type=type_)
+        if etat in Ressource.Etat.values:
+            qs = qs.filter(etat=etat)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["q"] = self.request.GET.get("q", "").strip()
+        ctx["types"] = Ressource.Type.choices
+        ctx["etats"] = Ressource.Etat.choices
+        params = self.request.GET.copy(); params.pop("page", None)
+        ctx["filtres"] = params.urlencode()
+        return ctx
 
 
-class RessourceCreateView(OrganisateurRequiredMixin, CreateView):
+class RessourceCreateView(OrganisateurRequiredMixin, SuccessMessageMixin, CreateView):
     model = Ressource
     form_class = RessourceForm
     success_url = reverse_lazy("ressources:liste")
+    success_message = "La ressource « %(nom)s » a été ajoutée."
 
 
 class AffectationCreateView(ProprietaireEvenementMixin, CreateView):
