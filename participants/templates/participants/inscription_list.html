@@ -4,7 +4,12 @@
 {% block intro %}{{ paginator.count }} inscription{{ paginator.count|pluralize }}{% if evenement %} à cet événement{% else %} sur les événements que vous gérez{% endif %}.{% endblock %}
 {% block page_actions %}{% if evenement %}
   <a class="btn primary" href="{% url 'participants:checkin' evenement.pk %}">Check-in</a>
+  <a class="btn ghost" href="{% url 'participants:tableau_de_bord' evenement.pk %}">Tableau de bord</a>
+  <a class="btn ghost" href="{% url 'participants:inscription_export' %}?evenement={{ evenement.pk }}{% if filtres %}&amp;{{ filtres }}{% endif %}">Exporter CSV</a>
   <a class="btn ghost" href="{{ evenement.get_absolute_url }}">← Retour à l'événement</a>
+{% else %}
+  <a class="btn ghost" href="{% url 'participants:inscription_export' %}{% if filtres %}?{{ filtres }}{% endif %}">Exporter CSV</a>
+  {% if evenement_filtre %}<a class="btn ghost" href="{% url 'participants:tableau_de_bord' evenement_filtre %}">Tableau de bord</a>{% endif %}
 {% endif %}{% endblock %}
 {% block filters %}
 <form class="filters" method="get" role="search" style="grid-template-columns:{% if evenement %}1.6fr 1fr auto auto{% else %}1.6fr 1fr 1fr auto auto{% endif %}">

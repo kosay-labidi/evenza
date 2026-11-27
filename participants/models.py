@@ -1,4 +1,5 @@
 import uuid
+from functools import partial
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -121,15 +122,7 @@ class Inscription(models.Model):
             self.save(update_fields=["statut"])
             if not etait_confirmee:
                 return
-            for attente in (evenement.inscriptions.filter(statut=self.Statut.ATTENTE)
-                            .select_related("type_billet").order_by("date_inscription", "pk")):
-                if attente.quantite > evenement.places_restantes:
-                    continue
-                t = attente.type_billet
-                if t is not None and t.restants is not None and attente.quantite > t.restants:
-                    continue
-                attente.statut = self.Statut.CONFIRMEE
-                attente.save(update_fields=["statut"])
+            self._promouvoir_liste_attente(evenement)
 
     # ---- modification de la réservation par le participant ----
     def motif_refus_modification(self):
@@ -193,7 +186,15 @@ class Inscription(models.Model):
     @classmethod
     def _promouvoir_liste_attente(cls, evenement):
         """Confirme, dans l'ordre d'inscription, les réservations en attente qui tiennent dans les places libres
-        (même règle que la fin de ``annuler()``)."""
+        (capacité de l'événement ET quota de leur type de billet). Seul point de promotion : appelée par
+        ``annuler()`` et ``modifier()``, toujours dans leur transaction, sous le verrou de l'événement.
+
+        Chaque participant promu reçoit un e-mail, envoyé seulement après la validation de la transaction
+        (``transaction.on_commit``) : rien n'est envoyé si la transaction échoue. Retourne les réservations promues.
+        """
+        from .notifications import notifier_promotion          # import tardif : notifications importe ce module
+
+        promues = []
         for attente in (evenement.inscriptions.filter(statut=cls.Statut.ATTENTE)
                         .select_related("type_billet").order_by("date_inscription", "pk")):
             if attente.quantite > evenement.places_restantes:
@@ -203,6 +204,53 @@ class Inscription(models.Model):
                 continue
             attente.statut = cls.Statut.CONFIRMEE
             attente.save(update_fields=["statut"])
+            transaction.on_commit(partial(notifier_promotion, attente.pk))
+            promues.append(attente)
+        return promues
+
+    # ---- transfert du billet à un autre utilisateur ----
+    def motif_refus_transfert(self):
+        """Message expliquant pourquoi la réservation ne peut pas être transférée, ou None si elle peut l'être."""
+        if self.statut == self.Statut.ANNULEE:
+            return "Une réservation annulée ne peut pas être transférée."
+        if self.statut != self.Statut.CONFIRMEE:
+            return "Seule une réservation confirmée peut être transférée."
+        if self.present:
+            return "Ce billet a déjà été scanné à l'entrée : il ne peut plus être transféré."
+        if self.evenement.date_debut <= timezone.now():
+            return "L'événement a déjà commencé : le billet ne peut plus être transféré."
+        return None
+
+    @property
+    def transferable(self):
+        return self.motif_refus_transfert() is None
+
+    def transferer(self, destinataire):
+        """Donne la réservation à ``destinataire`` (un utilisateur existant et actif).
+
+        Même protection que ``inscrire()`` : transaction + verrou sur la ligne de l'événement.
+        Un nouveau ``code_billet`` est généré (l'ancien QR ne marche plus) et ``present`` est remis à False.
+        Type de billet, quantité, montant et date d'inscription (donc la place dans l'ordre) sont conservés.
+        Une éventuelle ligne ANNULEE du destinataire pour cet événement est supprimée (une seule ligne par
+        (événement, participant)). Lève ValidationError en cas de refus.
+        """
+        with transaction.atomic():
+            Evenement.objects.select_for_update().get(pk=self.evenement_id)
+            actuelle = type(self).objects.select_related("evenement").get(pk=self.pk)
+            motif = actuelle.motif_refus_transfert()
+            if motif:
+                raise ValidationError(motif)
+            if destinataire is None or not destinataire.is_active:
+                raise ValidationError("Destinataire introuvable.")
+            if destinataire.pk == actuelle.participant_id:
+                raise ValidationError("Vous ne pouvez pas vous transférer votre propre billet.")
+            siennes = type(self).objects.filter(evenement_id=self.evenement_id, participant=destinataire)
+            if siennes.exclude(statut=self.Statut.ANNULEE).exists():
+                raise ValidationError(f"{destinataire} a déjà une réservation pour cet événement.")
+            siennes.filter(statut=self.Statut.ANNULEE).delete()
+            self.participant, self.code_billet, self.present = destinataire, uuid.uuid4(), False
+            self.save(update_fields=["participant", "code_billet", "present"])
+            return self
 
 
 class Avis(models.Model):

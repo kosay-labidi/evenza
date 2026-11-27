@@ -15,7 +15,7 @@ MODULE = Module(
     namespace="participants",
     description="Inscrits, listes d'attente, types de billets et contrôle d'entrée.",
     sous_liens=(
-        Lien("Synthèse", "participants:index", ("index", "checkin")),
+        Lien("Synthèse", "participants:index", ("index", "checkin", "tableau_de_bord")),
         Lien("Inscriptions", "participants:inscription_liste", ("inscription_liste", "inscription_detail", "liste")),
         Lien("Avis", "participants:avis_liste", ("avis_liste", "avis_detail", "avis_supprimer")),
         Lien("Types de billets", "participants:typebillet_liste", ("typebillet_liste", "typebillet_detail", "type_creer", "typebillet_modifier", "typebillet_supprimer")),

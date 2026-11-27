@@ -1,4 +1,5 @@
-{% extends "app_base.html" %}{% block title %}Utilisateurs{% endblock %}
+{% extends "app_base.html" %}{% load static %}{% block title %}Utilisateurs{% endblock %}
+{% block app_head %}<link rel="stylesheet" href="{% static 'utilisateurs/css/utilisateurs.css' %}">{% endblock %}
 {% block banner %}{% include "partials/banner.html" with sur_titre="Comptes" titre="Utilisateurs" texte="Tous les comptes de la plateforme : participants, organisateurs, prestataires, clients et administrateurs." %}{% endblock %}
 {% block content %}
 <style>
@@ -12,29 +13,98 @@
 .icon-btn.is-locked{color:var(--color-text-muted);border-style:dashed;cursor:help}.icon-btn.is-locked:hover{background:var(--color-surface);color:var(--color-text-muted);border-color:var(--color-border-strong)}
 @container (max-width:760px){.icon-actions{justify-content:flex-start;padding-top:10px;border-top:1px dashed var(--color-border)}}
 </style>
+
+{# ---- Amélioration 1 : KPI globaux, cliquables ---- #}
+<nav class="kpi-grid u-kpis" aria-label="Statistiques globales des comptes (cliquer pour filtrer)">
+  {% for k in kpis %}<a class="kpi{% if k.actif %} is-active{% endif %}" href="{{ k.url }}"{% if k.actif %} aria-current="true"{% endif %} data-kpi="{{ k.cle }}">
+    <b>{{ k.valeur }}</b><span>{{ k.titre }}</span><small>{{ k.aide }}</small></a>{% endfor %}
+</nav>
+<p class="u-kpi-note">Chiffres globaux sur l'ensemble des {{ total_global }} compte{{ total_global|pluralize }}, indépendants des filtres ci-dessous.</p>
+
 <div class="sec-head" style="margin-top:0"><h2>Liste</h2><a class="btn primary" href="{% url 'utilisateurs:utilisateur_creer' %}">+ Nouvel utilisateur</a></div>
 
-<form class="filters users-filters" method="get" role="search">
+{# ---- Amélioration 2 : recherche, filtres, tri ---- #}
+<form class="u-filtres" method="get" role="search" aria-label="Rechercher et filtrer les utilisateurs">
   {% if role_actif %}<input type="hidden" name="role" value="{{ role_actif }}">{% endif %}
-  <input type="search" name="q" value="{{ q }}" placeholder="Nom, identifiant ou e-mail…" aria-label="Rechercher un utilisateur">
-  <select name="statut" aria-label="Statut">
-    <option value="">Tous les statuts</option>
-    <option value="actif" {% if statut == "actif" %}selected{% endif %}>Actifs</option>
-    <option value="inactif" {% if statut == "inactif" %}selected{% endif %}>Désactivés</option>
-  </select>
-  <select name="tri" aria-label="Trier par">{% for cle, libelle in tris %}<option value="{{ cle }}" {% if tri == cle %}selected{% endif %}>Tri : {{ libelle }}</option>{% endfor %}</select>
-  <button class="btn primary sm">Filtrer</button>
+  <input type="hidden" name="vue" value="{{ vue }}">
+  <div class="u-filtres-ligne">
+    <input type="search" name="q" value="{{ q }}" placeholder="Nom, prénom, identifiant, e-mail ou téléphone…" aria-label="Rechercher un utilisateur">
+    <label>Statut {{ form_filtres.statut }}</label>
+    <label>Trier par <select name="tri">{% for cle, libelle in tris %}<option value="{{ cle }}" {% if tri == cle %}selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></label>
+    <label>Par page <select name="par_page">{% for n in choix_par_page %}<option value="{{ n }}" {% if par_page == n %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
+    <button class="btn primary sm" type="submit">Filtrer</button>
+    <a class="btn ghost sm" href="?vue={{ vue }}">Réinitialiser les filtres</a>
+  </div>
+  <details{% if form_filtres.inscrit_du.value or form_filtres.inscrit_au.value or form_filtres.connecte_du.value or form_filtres.connecte_au.value or form_filtres.connexion.value %} open{% endif %}>
+    <summary>Filtres avancés : dates et connexion</summary>
+    <div class="u-avance">
+      <label>Inscrit depuis le {{ form_filtres.inscrit_du }}</label>
+      <label>Inscrit jusqu'au {{ form_filtres.inscrit_au }}</label>
+      <label>Connecté depuis le {{ form_filtres.connecte_du }}</label>
+      <label>Connecté jusqu'au {{ form_filtres.connecte_au }}</label>
+      <label>Connexion {{ form_filtres.connexion }}</label>
+    </div>
+  </details>
+  {% if erreurs_filtres %}<div class="u-erreurs" role="alert">Filtre ignoré : {% for champ, errs in erreurs_filtres.items %}{{ errs|join:" " }} {% endfor %}</div>{% endif %}
 </form>
 
 <nav class="role-tabs" aria-label="Filtrer par rôle">
   <a href="?{{ filtres_sans_role }}" class="role-tab{% if not role_actif %} is-active{% endif %}"{% if not role_actif %} aria-current="true"{% endif %}>Tous <span>{{ total_tous_roles }}</span></a>
-  {% for val, nom, n in onglets_roles %}<a href="?{% if filtres_sans_role %}{{ filtres_sans_role }}&{% endif %}role={{ val }}" class="role-tab role-{{ val|lower }}{% if role_actif == val %} is-active{% endif %}"{% if role_actif == val %} aria-current="true"{% endif %}>{{ nom }} <span>{{ n }}</span></a>{% endfor %}
+  {% for val, nom, n in onglets_roles %}<a href="?{% if filtres_sans_role %}{{ filtres_sans_role }}&amp;{% endif %}role={{ val }}" class="role-tab role-{{ val|lower }}{% if role_actif == val %} is-active{% endif %}"{% if role_actif == val %} aria-current="true"{% endif %}>{{ nom }} <span>{{ n }}</span></a>{% endfor %}
 </nav>
 
-<p class="muted small users-count">{{ page_obj.paginator.count }} utilisateur{{ page_obj.paginator.count|pluralize }}{% if q %} pour « {{ q }} »{% endif %}{% if q or statut or role_actif %} · <a href="?">Réinitialiser les filtres</a>{% endif %}</p>
+{% if puces %}<ul class="u-puces" aria-label="Filtres actifs">{% for p in puces %}<li class="u-puce">{{ p.libelle }} : {{ p.valeur }}<a href="{{ p.url }}" aria-label="Retirer le filtre {{ p.libelle }}" title="Retirer ce filtre">×</a></li>{% endfor %}</ul>{% endif %}
 
-<div class="table-wrap users-wrap"><table class="table users-table"><thead><tr><th>Utilisateur</th><th>Rôle &amp; statut</th><th>Activité</th><th>Inscrit le</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
+<div class="u-outils">
+  <p class="muted small users-count" aria-live="polite"><b>{{ page_obj.paginator.count }}</b> résultat{{ page_obj.paginator.count|pluralize }}{% if q %} pour « {{ q }} »{% endif %}{% if puces %} · <a href="?vue={{ vue }}">Réinitialiser les filtres</a>{% endif %}</p>
+  <nav class="u-vues" aria-label="Mode d'affichage">
+    <a href="{{ url_vue_tableau }}"{% if vue == "tableau" %} aria-current="true"{% endif %}>Tableau</a>
+    <a href="{{ url_vue_cartes }}"{% if vue == "cartes" %} aria-current="true"{% endif %}>Cartes</a>
+  </nav>
+</div>
+
+{# ---- Amélioration 7 : barre d'actions groupées (les cases à cocher sont reliées par l'attribut form) ---- #}
+<form id="u-groupe" method="post" action="{% url 'utilisateurs:utilisateur_action_groupee' %}">{% csrf_token %}<input type="hidden" name="retour" value="{{ filtres }}"></form>
+{% if selectionnables %}
+<div class="u-groupe" data-u-groupe role="region" aria-label="Actions groupées">
+  <span><b data-u-compte>0</b> compte(s) sélectionné(s)</span>
+  <button class="btn sm" type="submit" form="u-groupe" name="action" value="activer">Activer</button>
+  <button class="btn sm" type="submit" form="u-groupe" name="action" value="desactiver">Désactiver</button>
+  <button class="btn sm" type="button" data-u-vider>Vider la sélection</button>
+</div>
+{% endif %}
+
+{% if object_list %}
+{% if vue == "cartes" %}
+<ul class="u-cartes">
+{% for u in object_list %}<li><article class="u-carte{% if not u.is_active %} is-inactive{% endif %}">
+  {% if u.gerable and u.pk != user.pk %}<input class="u-check" type="checkbox" name="ids" value="{{ u.pk }}" form="u-groupe" data-u-select aria-label="Sélectionner {{ u.username }}">{% endif %}
+  <div class="u-carte-tete">
+    <span class="avatar role-{{ u.role|lower }}" aria-hidden="true">{% if u.photo %}<img src="{{ u.photo.url }}" alt="" loading="lazy">{% else %}{{ u.initiales }}{% endif %}</span>
+    <div><h3><a href="{% url 'utilisateurs:utilisateur_detail' u.pk %}">{{ u.get_full_name|default:u.username }}</a></h3><small>@{{ u.username }}{% if u.pk == user.pk %} · vous{% endif %}{% if u.is_superuser %} · superutilisateur{% endif %}</small></div>
+  </div>
+  {% if u.email %}<a class="u-mail" href="mailto:{{ u.email }}">{{ u.email }}</a>{% endif %}
+  <div class="u-stack" style="display:flex;gap:6px;flex-wrap:wrap"><span class="role-pill role-{{ u.role|lower }}">{{ u.get_role_display }}</span>{% if u.is_active %}<span class="badge confirmee">Actif</span>{% else %}<span class="badge annulee">Désactivé</span>{% endif %}</div>
+  <div class="u-carte-pied"><span>{% if u.last_login %}Vu il y a {{ u.last_login|timesince }}{% else %}Jamais connecté{% endif %}</span>
+    <details class="u-menu"><summary aria-label="Actions pour {{ u.username }}">⋯</summary><ul>
+      <li><a href="{% url 'utilisateurs:utilisateur_detail' u.pk %}">Voir la fiche</a></li>
+      {% if u.gerable %}<li><a href="{% url 'utilisateurs:utilisateur_modifier' u.pk %}">Modifier</a></li>
+      {% if u.pk != user.pk %}{% if u.is_active %}<li><a href="{% url 'utilisateurs:utilisateur_desactiver' u.pk %}">Désactiver</a></li>{% else %}<li><a href="{% url 'utilisateurs:utilisateur_reactiver' u.pk %}">Réactiver</a></li>{% endif %}
+      <li><a class="is-danger" href="{% url 'utilisateurs:utilisateur_supprimer' u.pk %}">Supprimer</a></li>{% endif %}
+      {% else %}<li><span class="muted small" style="display:block;padding:8px 12px">Compte technique protégé</span></li>{% endif %}
+    </ul></details></div>
+</article></li>{% endfor %}
+</ul>
+{% else %}
+<div class="table-wrap users-wrap"><table class="table users-table"><thead><tr>
+  <th class="u-col-check">{% if selectionnables %}<input class="u-check" type="checkbox" data-u-select-tout aria-label="Sélectionner tous les comptes de la page">{% endif %}</th>
+  <th aria-sort="{{ colonnes.nom.aria }}"><a class="u-tri" href="{{ colonnes.nom.url }}">Utilisateur</a></th>
+  <th aria-sort="{{ colonnes.role.aria }}"><a class="u-tri" href="{{ colonnes.role.url }}">Rôle</a> &amp; <a class="u-tri" href="{{ colonnes.statut.url }}">statut</a></th>
+  <th>Activité</th>
+  <th aria-sort="{{ colonnes.inscription.aria }}"><a class="u-tri" href="{{ colonnes.inscription.url }}">Inscrit le</a> · <a class="u-tri" href="{{ colonnes.connexion.url }}">connexion</a></th>
+  <th><span class="sr-only">Actions</span></th></tr></thead><tbody>
 {% for u in object_list %}<tr{% if not u.is_active %} class="is-inactive"{% endif %}>
+  <td class="u-col-check">{% if u.gerable and u.pk != user.pk %}<input class="u-check" type="checkbox" name="ids" value="{{ u.pk }}" form="u-groupe" data-u-select aria-label="Sélectionner {{ u.username }}">{% endif %}</td>
   <td class="u-main"><div class="user-cell">
     <span class="avatar role-{{ u.role|lower }}" aria-hidden="true"{% if u.photo %} style="overflow:hidden"{% endif %}>{% if u.photo %}<img src="{{ u.photo.url }}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">{% else %}{{ u.initiales }}{% endif %}</span>
     <span class="user-id"><a href="{% url 'utilisateurs:utilisateur_detail' u.pk %}"><strong>{{ u.get_full_name|default:u.username }}</strong></a><small>@{{ u.username }}{% if u.pk == user.pk %} · vous{% endif %}{% if u.is_superuser %} · superutilisateur{% endif %}</small>{% if u.email %}<a class="user-mail" href="mailto:{{ u.email }}">{{ u.email }}</a>{% endif %}</span>
@@ -43,7 +113,12 @@
   <td data-label="Activité"><div class="u-activity"><span{% if not u.nb_evenements %} class="muted"{% endif %}><b>{{ u.nb_evenements }}</b> événement{{ u.nb_evenements|pluralize }}</span><span{% if not u.nb_inscriptions %} class="muted"{% endif %}><b>{{ u.nb_inscriptions }}</b> inscription{{ u.nb_inscriptions|pluralize }}</span></div></td>
   <td data-label="Inscrit le"><span title="Inscrit le {{ u.date_joined|date:'d/m/Y à H:i' }}">{{ u.date_joined|date:"d/m/Y" }}</span><small class="muted user-last">{% if u.last_login %}Vu il y a {{ u.last_login|timesince }}{% else %}Jamais connecté{% endif %}</small></td>
   <td class="u-actions"><div class="icon-actions">{% if u.gerable %}<a class="icon-btn" href="{% url 'utilisateurs:utilisateur_modifier' u.pk %}" title="Modifier" aria-label="Modifier {{ u.username }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></a>{% else %}<span class="icon-btn is-locked" title="Compte technique : géré uniquement par un superutilisateur" aria-label="Compte protégé" role="img"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>{% endif %}{% if u.gerable and u.pk != user.pk %}{% if u.is_active %}<a class="icon-btn is-warn" href="{% url 'utilisateurs:utilisateur_desactiver' u.pk %}" title="Désactiver" aria-label="Désactiver {{ u.username }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-3.9 3.1-6 7-6s7 2.1 7 6"/><path d="m17 8 5 5m0-5-5 5"/></svg></a>{% else %}<a class="icon-btn is-ok" href="{% url 'utilisateurs:utilisateur_reactiver' u.pk %}" title="Réactiver" aria-label="Réactiver {{ u.username }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-3.9 3.1-6 7-6s7 2.1 7 6"/><path d="m16 11 2 2 4-4"/></svg></a>{% endif %}<a class="icon-btn is-danger" href="{% url 'utilisateurs:utilisateur_supprimer' u.pk %}" title="Supprimer" aria-label="Supprimer {{ u.username }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></a>{% endif %}</div></td>
-</tr>{% empty %}<tr><td colspan="5" class="users-empty">Aucun utilisateur ne correspond.{% if q or statut or role_actif %} <a href="?">Réinitialiser les filtres</a>{% endif %}</td></tr>{% endfor %}
+</tr>{% endfor %}
 </tbody></table></div>
+{% endif %}
 {% include "partials/pagination.html" %}
+{% else %}
+  {% include "partials/empty_state.html" with icone="utilisateurs" titre="Aucun utilisateur ne correspond" texte="Modifiez la recherche ou retirez un filtre pour élargir les résultats." action_url="?vue="|add:vue action_label="Réinitialiser les filtres" %}
+{% endif %}
 {% endblock %}
+{% block extra_js %}<script src="{% static 'utilisateurs/js/utilisateurs.js' %}" defer></script>{% endblock %}

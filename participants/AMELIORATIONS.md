@@ -35,36 +35,48 @@ Usage : « Lis participants/AMELIORATIONS.md et fais l'amélioration N ».
 - Fichiers : `models.py` (propriété `position_attente`, None si pas en attente), `templates/participants/mes_inscriptions.html`, `templates/participants/billet.html`. Dans `MesInscriptionsView`, éviter une requête par ligne si possible.
 - Tests : première, deuxième, promotion après annulation (la position baisse), réservation confirmée (None), réservation d'un autre événement non comptée.
 
-### [ ] 2. Transfert de billet
+### [x] 2. Transfert de billet
 - Objectif : donner sa réservation confirmée à un autre utilisateur du site, trouvé par nom d'utilisateur ou e-mail (insensible à la casse, correspondance exacte).
 - Règles : seulement la réservation du participant connecté, statut `CONFIRMEE`, `present` faux, événement non commencé. Le destinataire est actif, différent de l'expéditeur, sans réservation active pour cet événement. S'il a une ligne annulée pour l'événement, la supprimer dans la même transaction (la contrainte d'unicité l'impose). Un nouveau `code_billet` est généré : l'ancien ne marche plus. Type, quantité, montant et date d'inscription sont conservés.
 - Mécanique : nouvelle méthode de modèle `transferer(destinataire)`, avec transaction et verrou sur l'événement comme `inscrire()`. Page de confirmation (GET) avant le transfert (POST), avec messages clairs.
 - Fichiers : `models.py`, `forms.py` (formulaire de recherche du destinataire), `views.py`, `urls.py` (`inscription_transferer`), `templates/participants/inscription_transfert.html`, bouton dans `mes_inscriptions.html`.
 - Tests : succès (nouveau code, ancien code introuvable sur `billet`), destinataire inconnu, soi-même, déjà inscrit, ligne annulée du destinataire remplacée, billet scanné, événement commencé, réservation annulée ou en attente, réservation d'un autre (404), anonyme.
 
-### [ ] 3. Ajouter au calendrier (.ics)
+### [x] 3. Ajouter au calendrier (.ics)
 - Objectif : télécharger un fichier .ics de l'événement depuis le billet et depuis Mes inscriptions.
 - Règles : contenu = titre, début, fin, lieu (nom, adresse, ville), identifiant stable basé sur le code du billet. Dates en UTC, fins de ligne CRLF, caractères spéciaux échappés selon la norme. Aucune bibliothèque. Seulement les réservations du participant connecté, non annulées (404 sinon, y compris pour l'organisateur et l'admin).
 - Fichiers : `views.py` (réponse `text/calendar` avec téléchargement), `urls.py` (`billet_ics`), boutons dans `billet.html` et `mes_inscriptions.html`.
 - Tests : contenu et en-têtes, caractères spéciaux dans le titre, réservation d'un autre (404), annulée (404), anonyme.
 
-### [ ] 4. Notification de la liste d'attente
+### [x] 4. Notification de la liste d'attente
 - Objectif : quand une réservation passe de `ATTENTE` à `CONFIRMEE`, le participant reçoit un e-mail.
 - Règles : signal dans `signals.py`, branché dans `apps.py` (méthode `ready`). Mémoriser l'ancien statut avant l'enregistrement, détecter la transition après. Envoi différé après validation de la transaction. Ne pas modifier `annuler()`. Utiliser la configuration e-mail existante telle quelle, sans rien ajouter dans `settings.py`. Pas d'e-mail pour une création, un passage vers un autre statut, ni si le participant n'a pas d'adresse. Un échec d'envoi ne doit jamais faire échouer l'annulation.
 - Fichiers : `signals.py` (nouveau), `apps.py`, éventuellement gabarit de texte dans `templates/participants/`.
 - Tests (boîte mail de test de Django) : promotion par `annuler()` envoie un e-mail, promotion par `modifier()` aussi, création directe en `CONFIRMEE` n'en envoie pas, pas d'adresse, annulation simple sans e-mail, contenu (événement, date, lien vers le billet).
 
-### [ ] 5. Scan du QR code avec la caméra
+### [x] 5. Scan du QR code avec la caméra
 - Objectif : sur la page de check-in, un bouton ouvre la caméra, lit le QR code du billet et envoie le code comme la saisie manuelle. La saisie manuelle reste disponible.
 - Règles : le QR contient le code complet du billet, déjà accepté par `CheckinForm`. Le scan remplit le champ `code` et envoie le formulaire existant (aucune nouvelle logique serveur). Bibliothèque JS en version fixe, copiée dans `participants/static/participants/`. Si la caméra est refusée ou indisponible, message clair et saisie manuelle. La caméra ne marche qu'en localhost ou en https.
 - Fichiers : `participants/static/participants/<bibliothèque>.min.js` (nouveau), `templates/participants/checkin.html` (chargement du script, zone vidéo, bouton). Vérifier que le gabarit parent permet d'ajouter un script, sinon l'inclure dans le contenu.
 - Tests : la page de check-in contient le bouton et référence le fichier statique, le fichier est trouvé par les finders statiques, accès organisateur et refus participant. Le scan lui-même est un test manuel.
 
-### [ ] 6. Tableau de bord de l'événement
+### [x] 6. Tableau de bord de l'événement
 - Objectif : page pour l'organisateur de l'événement (ou l'admin) avec 4 graphiques Chart.js.
 - Règles : calculs dans la vue, données passées en JSON. Taux de remplissage = places confirmées / capacité. Revenus par type de billet = somme des montants des réservations confirmées (« Entrée » quand il n'y a pas de type). Taux de présence = réservations confirmées avec `present` / réservations confirmées. Réservations par jour = nombre de réservations par date d'inscription. Gérer l'absence de données (événement vide, capacité nulle). Chart.js en version fixe, copié dans `participants/static/participants/`.
 - Fichiers : `views.py` (`ProprietaireEvenementMixin`), `urls.py` (`tableau_de_bord`, ex. `evenement/<pk>/tableau-de-bord/`), `templates/participants/evenement_tableau.html`, lien dans `templates/participants/inscription_list.html` (quand un événement est fixé) et éventuellement `index.html`.
 - Tests : chiffres exacts sur un jeu de données connu, événement sans inscription, organisateur propriétaire et admin autorisés, autre organisateur et participant en 403, anonyme redirigé.
+
+### [x] 7. Export CSV des inscrits
+- `InscriptionExportCsvView` (URL `inscription_export`) : mêmes permissions et mêmes filtres que `inscription_liste`, séparateur « ; », UTF-8 avec BOM. Bouton « Exporter CSV » dans `inscription_list.html`. Cellules commençant par = + - @ préfixées d'une apostrophe (pas de formule exécutée par le tableur).
+
+### [x] 8. Badge « Plus que X places »
+- Balise `{% badge_places n %}` (`templatetags/participants_badges.py`, seuil `SEUIL_PLACES = 5`) dans `reservation_choix.html` et `reservation_modifier.html` seulement. L'encadré des billets de la page de l'événement (application evenements) n'est pas modifié.
+
+### Écarts décidés à la demande de l'équipe (novembre 2026)
+- Amélioration 4 : pas de signal. `annuler()` appelle désormais `_promouvoir_liste_attente()` (code dupliqué supprimé) et c'est cette méthode qui programme l'e-mail avec `transaction.on_commit` (`notifications.py`).
+- Améliorations 5 et 6 : Chart.js 4.4.1 et html5-qrcode 2.3.8 sont chargés par CDN (jsDelivr) avec une version fixe et une empreinte SRI, et non copiés dans `static/`.
+- Amélioration 6 : 3 graphiques (statuts, ventes par type de billet avec places et chiffre d'affaires, inscriptions par jour) et 7 indicateurs.
+- Check-in : la vue distingue maintenant « inconnu » et « non confirmé », et répond en JSON quand le scan caméra le demande (en-tête Accept).
 
 ## Limites
 À mettre à jour après chaque amélioration. Déjà connues :
@@ -75,3 +87,5 @@ Usage : « Lis participants/AMELIORATIONS.md et fais l'amélioration N ».
 - Amélioration 4 : si la configuration e-mail du projet n'envoie pas réellement de courrier (console par exemple), le participant ne reçoit rien en dehors des tests.
 - Amélioration 5 : nécessite d'obtenir le fichier JS de la bibliothèque une fois (téléchargement), puis il est servi localement.
 - Amélioration 6 : lien seulement depuis les pages de `participants/`.
+- Amélioration 4 : le lien du billet dans l'e-mail est relatif, sauf si le projet définit un jour `SITE_URL` (non ajouté : `settings.py` est hors périmètre).
+- Améliorations 5 et 6 : les graphiques et le scan caméra demandent un accès Internet (CDN). Hors connexion, la page l'indique et la saisie manuelle du code reste possible.

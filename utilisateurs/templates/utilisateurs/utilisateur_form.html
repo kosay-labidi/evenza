@@ -1,4 +1,59 @@
-{% extends "form_base.html" %}{% block title %}{% if compte %}Modifier un utilisateur{% else %}Nouvel utilisateur{% endif %}{% endblock %}
-{% block eyebrow %}Utilisateurs{% endblock %}
-{% block heading %}{% if compte %}Modifier « {{ compte.username }} »{% else %}Nouvel utilisateur{% endif %}{% endblock %}
-{% block cancel %}{% if compte %}{% url 'utilisateurs:utilisateur_detail' compte.pk %}{% else %}{% url 'utilisateurs:utilisateur_liste' %}{% endif %}{% endblock %}
+{% extends "app_base.html" %}{% load static %}
+{% block title %}{% if compte %}Modifier un utilisateur{% else %}Nouvel utilisateur{% endif %}{% endblock %}
+{% block app_head %}<link rel="stylesheet" href="{% static 'utilisateurs/css/utilisateurs.css' %}">{% endblock %}
+{# Même structure que templates/form_base.html, avec l'aperçu du rôle et l'étape de confirmation du changement de rôle. #}
+{% block banner %}
+<section class="page-banner"><div class="container"><span class="eyebrow">Utilisateurs</span><h1>{% if compte %}Modifier « {{ compte.username }} »{% else %}Nouvel utilisateur{% endif %}</h1></div></section>
+{% endblock %}
+{% block content %}
+<div class="u-form-grille">
+<section class="card narrow form-card">
+  <form method="post" enctype="multipart/form-data" class="form">
+    {% csrf_token %}
+    {% if confirmation %}{% with c=confirmation %}
+    <div class="u-confirmation" role="alertdialog" aria-labelledby="t-confirm" aria-describedby="d-confirm">
+      <h2 id="t-confirm">Confirmer le changement de rôle</h2>
+      <p class="u-roles-fleche" id="d-confirm"><span class="role-pill role-{{ c.ancien.code|lower }}">{{ c.ancien.libelle }}</span> → <span class="role-pill role-{{ c.nouveau.code|lower }}">{{ c.nouveau.libelle }}</span></p>
+      <p class="u-sous-titre">Modules accordés</p>
+      <ul class="u-puces-roles is-on">{% for m in c.comparaison.accordes %}<li>{{ m }}</li>{% empty %}<li>Aucun</li>{% endfor %}</ul>
+      <p class="u-sous-titre">Modules retirés</p>
+      <ul class="u-puces-roles is-off">{% for m in c.comparaison.retires %}<li>{{ m }}</li>{% empty %}<li>Aucun</li>{% endfor %}</ul>
+      {% if c.gestion_comptes_accordee %}<p class="msg warning">Ce compte pourra gérer les comptes et les rôles de la plateforme.</p>{% endif %}
+      {% if c.gestion_comptes_retiree %}<p class="msg warning">Ce compte ne pourra plus gérer les utilisateurs.</p>{% endif %}
+      {% if c.donnees %}<p class="u-sous-titre">Données associées (non modifiées)</p>
+      <ul class="u-liste">{% for k, v in c.donnees.items %}<li><span class="muted">{{ k }}</span><b>{{ v }}</b></li>{% endfor %}</ul>{% endif %}
+      {% for a in c.avertissements %}<p class="msg warning" style="margin-top:10px">{{ a }}</p>{% endfor %}
+      <p class="muted small" style="margin:10px 0 0">Aucune donnée des autres gestions n'est modifiée par ce changement.{% if form.photo.value %} Si vous aviez choisi une nouvelle photo, sélectionnez-la de nouveau avant de confirmer.{% endif %}</p>
+      <input type="hidden" name="role_initial" value="{{ c.role_initial }}">
+      <input type="hidden" name="confirmer_role" value="{{ c.nouveau.code }}">
+      <div class="actions">
+        <button class="btn primary" type="submit">Confirmer le changement</button>
+        <a class="btn ghost" href="{% url 'utilisateurs:utilisateur_detail' compte.pk %}">Annuler</a>
+      </div>
+    </div>
+    {% endwith %}{% endif %}
+    {% include "partials/form_fields.html" %}
+    <div class="actions">
+      {% if not confirmation %}<button class="btn primary" type="submit">Enregistrer</button>{% endif %}
+      <a class="btn ghost" href="{% if compte %}{% url 'utilisateurs:utilisateur_detail' compte.pk %}{% else %}{% url 'utilisateurs:utilisateur_liste' %}{% endif %}">Annuler</a>
+    </div>
+  </form>
+</section>
+
+{# ---- Amélioration 5 : aperçu des autorisations du rôle sélectionné (mis à jour en direct) ---- #}
+<aside class="panel u-apercu" data-role-apercu aria-live="polite" aria-labelledby="t-apercu">
+  <span class="eyebrow" id="t-apercu">Aperçu du rôle</span>
+  <h2 data-role-libelle>—</h2>
+  <span data-role-niveau></span>
+  <p data-role-description class="muted" style="margin:0"></p>
+  <p class="u-sous-titre">Modules accessibles</p><ul class="u-puces-roles" data-role-modules></ul>
+  <p class="u-sous-titre">Espace personnel</p><ul class="u-puces-roles" data-role-espace></ul>
+  <p class="u-sous-titre">Fonctionnalités</p><ul class="u-points" data-role-fonctions></ul>
+  <p class="u-sous-titre">Restrictions</p><ul class="u-points" data-role-restrictions></ul>
+  <div data-role-preparees hidden><p class="u-sous-titre">Préparées, pas encore appliquées</p><ul class="u-points u-prepare"></ul></div>
+  <p class="muted small" style="margin:12px 0 0">Calculé à partir des règles d'accès réellement appliquées par l'application.</p>
+</aside>
+</div>
+{{ catalogue_roles|json_script:"catalogue-roles" }}
+{% endblock %}
+{% block extra_js %}<script src="{% static 'utilisateurs/js/utilisateurs.js' %}" defer></script>{% endblock %}

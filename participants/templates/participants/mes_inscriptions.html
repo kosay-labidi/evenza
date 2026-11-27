@@ -8,7 +8,9 @@
     {% with p=i.position_attente %}{% if p %}<br><small class="muted">Vous êtes {{ p }}{% if p == 1 %}er{% else %}e{% endif %} sur la liste d'attente</small>{% endif %}{% endwith %}</td>
   <td class="row-actions">
     {% if i.statut != "ANNULEE" %}<a class="btn ghost sm" href="{{ i.get_absolute_url }}">Billet</a>
+    <a class="btn ghost sm" href="{% url 'participants:billet_ics' i.code_billet %}" download>Ajouter au calendrier</a>
     {% if i.modifiable %}<a class="btn ghost sm" href="{% url 'participants:inscription_modifier' i.pk %}">Modifier</a>{% endif %}
+    {% if i.transferable %}<a class="btn ghost sm" href="{% url 'participants:inscription_transferer' i.pk %}">Transférer</a>{% endif %}
     <a class="btn ghost sm" href="{% url 'participants:annuler' i.pk %}">Annuler</a>{% endif %}
     {% if i.peut_donner_avis %}<a class="btn ghost sm" href="{% url 'participants:avis' i.pk %}">Donner un avis</a>
     {% elif i.avis %}<a class="btn ghost sm" href="{% url 'participants:avis_detail' i.avis.pk %}">Mon avis</a><a class="btn ghost sm" href="{% url 'participants:avis_modifier' i.avis.pk %}">Modifier mon avis</a><a class="btn ghost sm danger-text" href="{% url 'participants:avis_supprimer' i.avis.pk %}">Supprimer mon avis</a>{% endif %}

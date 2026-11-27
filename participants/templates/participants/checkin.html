@@ -2,9 +2,77 @@
 {% block content %}
 <section class="card narrow" style="margin-top:28px">
   <span class="eyebrow">{{ evenement }}</span><h1>Contrôle d'entrée</h1>
-  <p class="muted">{{ presents }} personne(s) entrée(s) sur {{ evenement.nb_inscrits }} inscrite(s).</p>
-  <form method="post" class="form">{% csrf_token %}{% include "partials/form_fields.html" %}
+  <p class="muted"><span id="nb-presents">{{ presents }}</span> personne(s) entrée(s) sur {{ evenement.nb_inscrits }} inscrite(s).</p>
+
+  {# Scan par caméra : le code lu est envoyé à cette même vue (POST + jeton CSRF), qui répond en JSON. #}
+  <div class="scan-qr" style="margin:18px 0 22px">
+    <div class="actions" style="margin-top:0">
+      <button class="btn primary" type="button" id="scan-start">Scanner un QR code</button>
+      <button class="btn ghost" type="button" id="scan-stop" hidden>Arrêter la caméra</button>
+    </div>
+    <div id="scan-lecteur" style="max-width:420px;margin-top:12px" hidden></div>
+    <div id="scan-resultat" class="msg" role="status" aria-live="polite" style="margin-top:12px" hidden></div>
+    <p class="muted small" id="scan-aide" style="margin-top:8px">La caméra fonctionne en localhost ou en https. Sinon, saisissez le code ci-dessous.</p>
+  </div>
+
+  <form method="post" class="form" id="checkin-form">{% csrf_token %}{% include "partials/form_fields.html" %}
     <div class="actions"><button class="btn primary">Valider l'entrée</button><a class="btn ghost" href="{% url 'participants:liste' evenement.pk %}">Liste des participants</a></div>
   </form>
 </section>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"
+        integrity="sha384-c9d8RFSL+u3exBOJ4Yp3HUJXS4znl9f+z66d1y54ig+ea249SpqR+w1wyvXz/lk+" crossorigin="anonymous"></script>
+<script>
+(() => {
+  const form = document.getElementById("checkin-form"), lecteur = document.getElementById("scan-lecteur");
+  const start = document.getElementById("scan-start"), stop = document.getElementById("scan-stop");
+  const sortie = document.getElementById("scan-resultat"), presents = document.getElementById("nb-presents");
+  const CLASSES = { success: "success", warning: "warning", error: "error" };
+  let scanner = null, occupe = false, dernier = "", dernierT = 0;
+
+  const afficher = (niveau, texte) => {
+    sortie.className = "msg " + (CLASSES[niveau] || "info"); sortie.textContent = texte; sortie.hidden = false;
+  };
+  const arreter = async () => {
+    if (scanner) { try { await scanner.stop(); } catch (e) {} scanner.clear(); scanner = null; }
+    lecteur.hidden = true; stop.hidden = true; start.hidden = false;
+  };
+  const envoyer = async (code) => {
+    const now = Date.now();
+    if (occupe || (code === dernier && now - dernierT < 4000)) return;   // évite de renvoyer le même billet en boucle
+    occupe = true; dernier = code; dernierT = now;
+    const data = new FormData(form); data.set("code", code);
+    try {
+      const r = await fetch(form.action || location.href, { method: "POST", body: data,
+        headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" }, credentials: "same-origin" });
+      const j = await r.json();
+      afficher(j.niveau, j.message);
+      if (typeof j.presents === "number") presents.textContent = j.presents;
+    } catch (e) {
+      afficher("error", "Erreur réseau : réessayez ou saisissez le code à la main.");
+    } finally { setTimeout(() => { occupe = false; }, 1200); }
+  };
+
+  if (!window.Html5Qrcode || !navigator.mediaDevices) {
+    start.disabled = true;
+    document.getElementById("scan-aide").textContent = "Lecteur QR indisponible sur cet appareil ou hors connexion : saisissez le code ci-dessous.";
+    return;
+  }
+  start.addEventListener("click", async () => {
+    lecteur.hidden = false; start.hidden = true; stop.hidden = false;
+    scanner = new Html5Qrcode("scan-lecteur");
+    try {
+      await scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 240, height: 240 } },
+                          (texte) => envoyer(texte.trim()), () => {});
+    } catch (e) {
+      await arreter();
+      afficher("error", "Caméra refusée ou indisponible : saisissez le code du billet ci-dessous.");
+      document.getElementById("id_code")?.focus();
+    }
+  });
+  stop.addEventListener("click", arreter);
+  window.addEventListener("pagehide", arreter);
+})();
+</script>
 {% endblock %}

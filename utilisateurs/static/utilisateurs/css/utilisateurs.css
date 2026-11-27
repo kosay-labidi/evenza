@@ -1,0 +1,119 @@
+/* Gestion des utilisateurs : compléments de mise en page (classes « u- »), variables d'Évenza uniquement. */
+
+/* ---- KPI cliquables (réutilisent .kpi-grid / .kpi de dashboard.css) ---- */
+.u-kpis{margin-bottom:8px}
+.u-kpis .kpi{text-decoration:none;color:inherit;padding:16px 18px;gap:2px;outline-offset:3px}
+.u-kpis .kpi b{font-size:34px}
+.u-kpis .kpi small{font-size:12px;color:var(--color-text-muted)}
+.u-kpis .kpi:first-child small{color:var(--color-on-dark-muted)}
+.u-kpis .kpi.is-active{border-color:var(--color-accent);box-shadow:0 0 0 2px var(--color-accent) inset}
+.u-kpis .kpi:focus-visible{outline:2px solid var(--color-accent)}
+.u-kpi-note{margin:0 0 18px;font-size:12.5px;color:var(--color-text-muted)}
+
+/* ---- Filtres ---- */
+.u-filtres{display:flex;flex-direction:column;gap:12px;margin-bottom:16px;padding:16px;background:var(--color-surface);
+  border:1px solid var(--color-border);border-radius:var(--radius-lg)}
+.u-filtres-ligne{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.u-filtres-ligne > *{min-width:0}
+.u-filtres input[type=search]{flex:1 1 260px}
+.u-filtres label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:600;color:var(--color-text-muted)}
+.u-filtres details summary{cursor:pointer;font-size:13.5px;font-weight:600;color:var(--color-primary);width:max-content}
+.u-filtres details[open] summary{margin-bottom:12px}
+.u-avance{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.u-erreurs{margin:0;padding:10px 14px;border-radius:var(--radius);background:var(--warn-bg);color:var(--warn);font-size:13.5px}
+
+/* ---- Puces de filtres actifs ---- */
+.u-puces{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0 0 12px;padding:0}
+.u-puce{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 12px;border-radius:var(--radius-pill);
+  background:var(--color-accent-soft);color:var(--color-primary);font-size:12.5px;font-weight:600}
+.u-puce a{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;color:var(--color-primary);
+  text-decoration:none;font-size:15px;line-height:1}
+.u-puce a:hover,.u-puce a:focus-visible{background:var(--color-primary);color:var(--color-on-dark)}
+
+/* ---- Barre d'outils : résultats, vue, par page ---- */
+.u-outils{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin:0 0 12px}
+.u-outils p{margin:0}
+.u-vues{display:inline-flex;border:1px solid var(--color-border-strong);border-radius:var(--radius-pill);overflow:hidden}
+.u-vues a{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;font-size:13px;font-weight:600;
+  color:var(--color-primary);text-decoration:none}
+.u-vues a[aria-current="true"]{background:var(--color-primary);color:var(--color-on-dark)}
+
+/* ---- Barre d'actions groupées ---- */
+.u-groupe{position:sticky;top:8px;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 12px;
+  padding:10px 14px;border-radius:var(--radius);background:var(--color-primary);color:var(--color-on-dark);box-shadow:var(--shadow)}
+.u-groupe[hidden]{display:none}
+.u-groupe b{font-weight:700}
+.u-groupe .btn{background:var(--color-surface);color:var(--color-primary);border-color:transparent}
+.u-groupe .btn:disabled{opacity:.5;cursor:not-allowed}
+.u-check{width:18px;height:18px;accent-color:var(--color-primary);cursor:pointer}
+.users-table th.u-col-check,.users-table td.u-col-check{width:34px;padding-right:0}
+
+/* ---- En-têtes triables ---- */
+.u-tri{display:inline-flex;align-items:center;gap:4px;color:inherit;text-decoration:none;white-space:nowrap}
+.u-tri:hover{color:var(--color-primary)}
+.u-tri::after{content:"↕";font-size:11px;opacity:.45}
+th[aria-sort="ascending"] .u-tri::after{content:"↑";opacity:1}
+th[aria-sort="descending"] .u-tri::after{content:"↓";opacity:1}
+
+/* ---- Vue cartes ---- */
+.u-cartes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;list-style:none;margin:0;padding:0}
+@media (max-width:1180px){.u-cartes{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.u-cartes{grid-template-columns:1fr}}
+.u-carte{position:relative;display:flex;flex-direction:column;gap:10px;height:100%;padding:18px;background:var(--color-surface);
+  border:1px solid var(--color-border);border-radius:var(--radius-lg);transition:border-color .2s,box-shadow .2s}
+.u-carte:hover{border-color:var(--color-border-strong);box-shadow:var(--shadow-sm)}
+.u-carte.is-inactive{opacity:.78}
+.u-carte-tete{display:flex;align-items:center;gap:12px;min-width:0;padding-right:28px}
+.u-carte-tete .avatar{width:52px;height:52px;font-size:19px;overflow:hidden}
+.u-carte-tete .avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.u-carte h3{margin:0;font-size:18px;overflow-wrap:anywhere}
+.u-carte h3 a{color:var(--color-primary-dark);text-decoration:none}
+.u-carte small,.u-carte .u-mail{display:block;font-size:13px;color:var(--color-text-muted);overflow-wrap:anywhere}
+.u-carte .u-check{position:absolute;top:16px;right:16px}
+.u-carte-pied{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:auto;padding-top:10px;
+  border-top:1px dashed var(--color-border);font-size:12.5px;color:var(--color-text-muted)}
+
+/* ---- Menu d'actions (details/summary : clavier et sans JS) ---- */
+.u-menu{position:relative}
+.u-menu summary{list-style:none;cursor:pointer;display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;
+  border:1px solid var(--color-border-strong);color:var(--color-primary);font-weight:700}
+.u-menu summary::-webkit-details-marker{display:none}
+.u-menu summary:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+.u-menu ul{position:absolute;right:0;bottom:calc(100% + 6px);z-index:6;min-width:180px;margin:0;padding:6px;list-style:none;
+  background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.u-menu a{display:block;padding:8px 12px;border-radius:var(--radius-sm);font-size:13.5px;color:var(--color-text);text-decoration:none}
+.u-menu a:hover,.u-menu a:focus-visible{background:var(--color-accent-soft)}
+.u-menu a.is-danger{color:var(--err)}
+
+/* ---- Fiche ---- */
+.u-sections{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:20px}
+.u-liste{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none;font-size:14px}
+.u-liste li{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed var(--color-border);padding-bottom:8px}
+.u-liste li:last-child{border-bottom:0}
+.u-puces-roles{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0 0 12px;padding:0}
+.u-puces-roles li{padding:3px 10px;border-radius:var(--radius-pill);background:var(--color-accent-soft);color:var(--color-primary);font-size:12.5px;font-weight:600}
+.u-puces-roles.is-off li{background:var(--err-bg);color:var(--err);text-decoration:line-through}
+.u-puces-roles.is-on li{background:var(--ok-bg);color:var(--ok)}
+.u-sous-titre{margin:14px 0 6px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-muted)}
+.u-points{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.u-prepare{font-size:13px;color:var(--warn)}
+
+/* ---- Formulaire + aperçu du rôle ---- */
+.u-form-grille{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start;max-width:1180px;margin-inline:auto}
+@media (max-width:980px){.u-form-grille{grid-template-columns:1fr}}
+.u-form-grille .card.narrow{max-width:none;margin:0}
+.u-apercu{position:sticky;top:16px}
+.u-apercu h2{margin:0 0 4px;font-size:22px}
+.u-apercu [data-role-niveau]{display:inline-block;margin:6px 0 10px;padding:3px 10px;border-radius:var(--radius-pill);
+  background:var(--color-primary);color:var(--color-on-dark);font-size:12px;font-weight:600}
+.u-confirmation{margin-bottom:18px;padding:18px;border-radius:var(--radius-lg);border:1px solid var(--warn);background:var(--warn-bg)}
+.u-confirmation h2{margin:0 0 10px;font-size:22px}
+.u-roles-fleche{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:0 0 12px;font-weight:600}
+.u-confirmation .actions{margin-top:14px}
+
+/* ---- Récapitulatif d'action groupée ---- */
+.u-recap{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+.u-recap div{padding:12px;border-radius:var(--radius);background:var(--color-background);border:1px solid var(--color-border);text-align:center}
+.u-recap b{display:block;font-family:var(--font-display);font-size:30px;line-height:1.1}
+
+@media (prefers-reduced-motion:reduce){.u-carte{transition:none}}

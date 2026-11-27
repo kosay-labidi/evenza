@@ -1,0 +1,33 @@
+{% extends "app_base.html" %}{% load static %}{% block title %}Action groupée{% endblock %}
+{% block app_head %}<link rel="stylesheet" href="{% static 'utilisateurs/css/utilisateurs.css' %}">{% endblock %}
+{% block banner %}<section class="page-banner"><div class="container"><span class="eyebrow">Confirmation</span><h1>{% if activer %}Activer{% else %}Désactiver{% endif %} {{ analyse.comptes|length }} compte{{ analyse.comptes|length|pluralize }} ?</h1></div></section>{% endblock %}
+{% block content %}
+<section class="card narrow form-card">
+  <div class="u-recap" aria-label="Récapitulatif">
+    <div><b>{{ analyse.a_modifier|length }}</b>{% if activer %}à activer{% else %}à désactiver{% endif %}</div>
+    <div><b>{{ analyse.deja|length }}</b>déjà {% if activer %}actif(s){% else %}désactivé(s){% endif %}</div>
+    <div><b>{{ analyse.proteges|length }}</b>protégé(s)</div>
+    <div><b>{{ analyse.refuses|length|add:analyse.introuvables }}</b>non autorisé(s)</div>
+  </div>
+  {% if analyse.bloquant %}
+  <div class="msg error" role="alert"><span>Opération impossible : <b>rien ne sera modifié</b> tant que la sélection contient ces comptes (principe « tout ou rien »). Retirez-les puis recommencez.</span></div>
+  <ul class="u-liste" style="margin-top:12px">
+    {% for c, motif in analyse.proteges %}<li><b>{{ c.username }}</b><span class="muted">{{ motif }}</span></li>{% endfor %}
+    {% for c, motif in analyse.refuses %}<li><b>{{ c.username }}</b><span class="muted">{{ motif }}</span></li>{% endfor %}
+    {% if analyse.introuvables %}<li><b>{{ analyse.introuvables }} compte(s)</b><span class="muted">Introuvable(s) : supprimé(s) entre-temps ?</span></li>{% endif %}
+  </ul>
+  {% else %}
+  {% if analyse.a_modifier %}<p class="u-sous-titre">Comptes qui seront {% if activer %}activés{% else %}désactivés{% endif %}</p>
+  <ul class="u-puces-roles">{% for c in analyse.a_modifier %}<li>{{ c.username }}</li>{% endfor %}</ul>{% endif %}
+  {% if analyse.deja %}<p class="u-sous-titre">Inchangés (déjà dans ce statut)</p><ul class="u-puces-roles">{% for c in analyse.deja %}<li>{{ c.username }}</li>{% endfor %}</ul>{% endif %}
+  {% if not activer and analyse.a_modifier %}<p class="msg success">Rien n'est supprimé : les comptes désactivés ne peuvent plus se connecter, leurs données sont conservées.</p>{% endif %}
+  {% endif %}
+  <form method="post" class="actions">{% csrf_token %}
+    <input type="hidden" name="action" value="{{ action }}">
+    <input type="hidden" name="retour" value="{{ retour }}">
+    {% for c in analyse.comptes %}<input type="hidden" name="ids" value="{{ c.pk }}">{% endfor %}
+    {% if not analyse.bloquant and analyse.a_modifier %}<button class="btn {% if activer %}primary{% else %}danger{% endif %}" type="submit" name="confirmer" value="1">Confirmer : {% if activer %}activer{% else %}désactiver{% endif %} {{ analyse.a_modifier|length }} compte{{ analyse.a_modifier|length|pluralize }}</button>{% endif %}
+    <a class="btn ghost" href="{{ url_retour }}">{% if analyse.bloquant or not analyse.a_modifier %}← Retour à la liste{% else %}Annuler{% endif %}</a>
+  </form>
+</section>
+{% endblock %}

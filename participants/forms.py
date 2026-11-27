@@ -1,6 +1,28 @@
 from django import forms
+from django.contrib.auth import get_user_model
 
 from .models import Avis, TypeBillet
+
+
+class TransfertForm(forms.Form):
+    """Choix du destinataire d'un transfert de billet : nom d'utilisateur ou e-mail (correspondance exacte,
+    sans tenir compte des majuscules). Le modèle utilisateur est seulement lu (get_user_model)."""
+    destinataire = forms.CharField(label="Nom d'utilisateur ou e-mail du destinataire", max_length=254,
+                                   help_text="La personne doit déjà avoir un compte Évenza.")
+
+    def clean_destinataire(self):
+        saisie = self.cleaned_data["destinataire"].strip()
+        User = get_user_model()
+        actifs = User.objects.filter(is_active=True)
+        par_nom = actifs.filter(username__iexact=saisie).first()          # le nom d'utilisateur est prioritaire
+        if par_nom:
+            return par_nom
+        trouves = list(actifs.filter(email__iexact=saisie)[:2])
+        if not trouves:
+            raise forms.ValidationError("Aucun compte actif ne correspond à ce nom d'utilisateur ou à cet e-mail.")
+        if len(trouves) > 1:
+            raise forms.ValidationError("Plusieurs comptes utilisent cet e-mail : saisissez le nom d'utilisateur.")
+        return trouves[0]
 
 
 class AvisForm(forms.ModelForm):

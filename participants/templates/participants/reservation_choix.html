@@ -1,8 +1,9 @@
-{% extends "base.html" %}{% block title %}Réserver · {{ evenement.titre }}{% endblock %}
+{% extends "base.html" %}{% load participants_badges %}{% block title %}Réserver · {{ evenement.titre }}{% endblock %}
 {% block content %}
 <section class="resa">
   <ol class="stepper"><li class="on"><b>1</b><span>Billets</span></li><li><b>2</b><span>Récapitulatif</span></li><li><b>3</b><span>Votre billet</span></li></ol>
   {% include "participants/_resa_head.html" %}
+  {% badge_places evenement.places_restantes as badge_evt %}{% if badge_evt %}<p class="center">{{ badge_evt }}{% if not evenement.places_restantes %} <small class="muted">Votre réservation ira sur la liste d'attente.</small>{% endif %}</p>{% endif %}
   <form method="post" class="card form" id="resaForm">{% csrf_token %}
     {% if form.non_field_errors %}<div class="msg error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
     {% if evenement.types_billet.exists %}
@@ -13,7 +14,8 @@
           <input type="radio" name="type_billet" value="{{ t.pk }}" data-prix="{{ t.prix|stringformat:'s' }}" {% if form.type_billet.value|stringformat:'s' == t.pk|stringformat:'s' or not form.type_billet.value and forloop.first %}checked{% endif %} {% if t.restants == 0 %}disabled{% endif %}>
           <span class="tkt-in"><b>{{ t.nom }}</b><small>{{ t.description|default:"—" }}</small>
             <em>{% if t.prix %}{{ t.prix|floatformat:0 }} DT{% else %}Gratuit{% endif %}</em>
-            {% if t.restants is not None %}<small class="muted">{% if t.restants %}{{ t.restants }} restant(s){% else %}Épuisé{% endif %}</small>{% endif %}</span>
+            {% if t.restants is not None %}<small class="muted">{% if t.restants %}{{ t.restants }} restant(s){% else %}Épuisé{% endif %}</small>{% endif %}
+            {% badge_places t.restants %}</span>
         </label>
         {% endfor %}
       </div>

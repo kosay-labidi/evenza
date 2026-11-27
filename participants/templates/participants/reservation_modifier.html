@@ -1,4 +1,4 @@
-{% extends "form_base.html" %}{% block title %}Modifier ma réservation{% endblock %}
+{% extends "form_base.html" %}{% load participants_badges %}{% block title %}Modifier ma réservation{% endblock %}
 {% block eyebrow %}{{ evenement.titre }} · actuellement {{ inscription.quantite }} × {% if inscription.type_billet %}{{ inscription.type_billet.nom }}{% else %}Entrée{% endif %}{% endblock %}
 {% block heading %}Modifier ma réservation{% endblock %}
 {% block submit %}Enregistrer les modifications{% endblock %}
@@ -7,7 +7,10 @@
 <section class="card narrow">
   <p class="muted small">{{ evenement.date_debut|date:"l d F Y · H:i" }} · {{ evenement.lieu }}.
     Le montant est recalculé (prix du billet × nombre de places). Vous pouvez modifier votre réservation jusqu'au début de l'événement.</p>
-  <p class="small"><b>{{ evenement.places_restantes }}</b> place(s) restante(s) sur {{ evenement.capacite }} · montant actuel : <b>{% if inscription.montant %}{{ inscription.montant|floatformat:2 }} DT{% else %}Gratuit{% endif %}</b>{% if inscription.statut == "ATTENTE" %} · <span class="badge attente">Liste d'attente</span>{% endif %}</p>
+  <p class="small"><b>{{ evenement.places_restantes }}</b> place(s) restante(s) sur {{ evenement.capacite }} {% badge_places evenement.places_restantes %} · montant actuel : <b>{% if inscription.montant %}{{ inscription.montant|floatformat:2 }} DT{% else %}Gratuit{% endif %}</b>{% if inscription.statut == "ATTENTE" %} · <span class="badge attente">Liste d'attente</span>{% endif %}</p>
+  {% if evenement.types_billet.exists %}<ul class="small" style="list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:6px">
+    {% for t in evenement.types_billet.all %}<li><b>{{ t.nom }}</b> · {% if t.prix %}{{ t.prix|floatformat:0 }} DT{% else %}Gratuit{% endif %}{% if t.restants is not None %} · {{ t.restants }} restant(s){% endif %} {% badge_places t.restants %}</li>{% endfor %}
+  </ul>{% endif %}
 </section>
 {{ block.super }}
 {% endblock %}

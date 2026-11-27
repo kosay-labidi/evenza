@@ -7,15 +7,16 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db import IntegrityError, OperationalError, connection, transaction
-from django.db.models import Count, F, Q
-from django.http import HttpResponseRedirect
+from django.db.models import Count
+from django.http import HttpResponseRedirect, QueryDict
 from django.shortcuts import redirect
-from django.urls import reverse_lazy
-from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
+from django.urls import reverse, reverse_lazy
+from django.views.generic import CreateView, DeleteView, DetailView, ListView, TemplateView, UpdateView
 
 from core.mixins import AdminRequiredMixin, SuppressionMixin
 from core.permissions import peut_gerer_compte
 
+from . import filtres, roles
 from .forms import (MSG_EMAIL_PRIS, ChangementMotDePasseForm, InscriptionCompteForm, NouveauMotDePasseForm,
                     ProfilForm, UtilisateurAdminForm, UtilisateurCreationAdminForm, email_deja_utilise)
 from .models import Utilisateur
@@ -212,39 +213,44 @@ class GestionCompteMixin(AdminRequiredMixin):
         return super().test_func() and peut_gerer_compte(self.request.user, self.get_object())
 
 
+CLE_SESSION_VUE = "utilisateurs_vue"      # mode d'affichage mémorisé dans la session (aucun modèle)
+
+
+def _qs(params):
+    """QueryDict -> « a=1&b=2 » (valeurs encodées)."""
+    return params.urlencode()
+
+
 class UtilisateurListView(AdminRequiredMixin, ListView):
+    """Liste des comptes : KPI, recherche, filtres combinables, tri en liste blanche, pagination 10/20/50,
+    vue tableau ou cartes (mêmes données, mêmes droits). Toute la logique de filtre est dans filtres.py."""
     model = Utilisateur
     template_name = "utilisateurs/utilisateur_list.html"
-    paginate_by = 20
+    TRIS = filtres.TRIS
 
-    TRIS = {
-        "nom": ("Nom (A → Z)", ("last_name", "first_name", "username")),
-        "identifiant": ("Identifiant", ("username",)),
-        "recents": ("Plus récents", ("-date_joined",)),
-        "connexion": ("Dernière connexion", (F("last_login").desc(nulls_last=True), "username")),
-        "role": ("Rôle", ("role", "username")),
-    }
+    def get_filtres(self):
+        if not hasattr(self, "_filtres"):
+            self._form = filtres.FiltresForm(self.request.GET)
+            self._filtres = self._form.valeurs()
+        return self._filtres
 
-    def get_base_queryset(self):
-        """Recherche + statut, sans le filtre de rôle : sert aussi au décompte par rôle des onglets."""
-        qs = Utilisateur.objects.all()
-        q = self.request.GET.get("q", "").strip()
-        if q:
-            qs = qs.filter(Q(username__icontains=q) | Q(first_name__icontains=q)
-                           | Q(last_name__icontains=q) | Q(email__icontains=q))
-        statut = self.request.GET.get("statut")
-        if statut in ("actif", "inactif"):
-            qs = qs.filter(is_active=statut == "actif")
-        return qs
+    def get_vue(self):
+        vue = self.request.GET.get("vue")
+        if vue in filtres.VUES:
+            self.request.session[CLE_SESSION_VUE] = vue
+            return vue
+        vue = self.request.session.get(CLE_SESSION_VUE)
+        return vue if vue in filtres.VUES else "tableau"
+
+    def get_paginate_by(self, queryset):
+        return self.get_filtres().get("par_page") or filtres.PAR_PAGE_DEFAUT
 
     def get_queryset(self):
-        qs = self.get_base_queryset()
-        role = self.request.GET.get("role")
-        if role:
-            qs = qs.filter(role=role)
-        tri = self.TRIS.get(self.request.GET.get("tri"), self.TRIS["identifiant"])[1]
-        return qs.annotate(nb_evenements=Count("evenements_organises", distinct=True),
-                           nb_inscriptions=Count("inscriptions", distinct=True)).order_by(*tri)
+        v = self.get_filtres()
+        tri = filtres.TRIS[v.get("tri") or filtres.TRI_DEFAUT][1]
+        return (filtres.filtrer(Utilisateur.objects.all(), v)
+                .annotate(nb_evenements=Count("evenements_organises", distinct=True),
+                          nb_inscriptions=Count("inscriptions", distinct=True)).order_by(*tri))
 
     def paginate_queryset(self, queryset, page_size):
         """Numéro de page hors limites ou invalide : dernière / première page au lieu d'une erreur 404."""
@@ -253,25 +259,84 @@ class UtilisateurListView(AdminRequiredMixin, ListView):
         page = paginator.get_page(self.request.GET.get(self.page_kwarg))
         return paginator, page, page.object_list, page.has_other_pages()
 
+    def params(self, **changements):
+        """Paramètres GET actuels (sans « page »), modifiés : valeur None = paramètre retiré."""
+        p = self.request.GET.copy()
+        p.pop("page", None)
+        for cle, val in changements.items():
+            p.pop(cle, None)
+            if val not in (None, ""):
+                p[cle] = val
+        return p
+
+    def contexte_kpi(self, v):
+        mois = filtres.debut_du_mois().date().isoformat()
+        garder = {"tri": v.get("tri"), "par_page": self.request.GET.get("par_page") and v.get("par_page"),
+                  "vue": self.get_vue()}
+        garder = {k: val for k, val in garder.items() if val}            # valeurs validées uniquement
+        cartes = [
+            ("total", "Utilisateurs", "Tous les comptes", {}, not (v.get("statut") or v.get("connexion") == "jamais"
+                                                                  or v.get("inscrit_du"))),
+            ("actifs", "Comptes actifs", "Peuvent se connecter", {"statut": "actif"}, v.get("statut") == "actif"),
+            ("desactives", "Désactivés", "Accès bloqué, données conservées", {"statut": "inactif"},
+             v.get("statut") == "inactif"),
+            ("nouveaux_mois", "Nouveaux ce mois-ci", f"Depuis le {filtres.debut_du_mois():%d/%m}",
+             {"inscrit_du": mois}, str(v.get("inscrit_du") or "") == mois and not v.get("inscrit_au")),
+            ("jamais_connectes", "Jamais connectés", "Aucune connexion enregistrée", {"connexion": "jamais"},
+             v.get("connexion") == "jamais"),
+        ]
+        valeurs = filtres.indicateurs(Utilisateur.objects.all())
+        return [{"cle": cle, "titre": titre, "aide": aide, "valeur": valeurs[cle], "actif": actif,
+                 "url": "?" + "&".join(f"{k}={val}" for k, val in {**garder, **params}.items())}
+                for cle, titre, aide, params, actif in cartes]
+
+    def contexte_puces(self, v):
+        """Filtres actifs sous forme de puces supprimables."""
+        form, puces = self._form, []
+        for nom, libelle in filtres.FiltresForm.LIBELLES.items():
+            val = v.get(nom)
+            if val in (None, ""):
+                continue
+            champ = form.fields[nom]
+            texte = dict(champ.choices).get(val, val) if hasattr(champ, "choices") else val
+            if hasattr(val, "strftime"):
+                texte = val.strftime("%d/%m/%Y")
+            puces.append({"libelle": libelle, "valeur": texte, "url": "?" + _qs(self.params(**{nom: None}))})
+        return puces
+
+    def contexte_colonnes(self, tri):
+        colonnes = {}
+        for col, (asc, desc) in filtres.COLONNES_TRI.items():
+            etat = "ascending" if tri == asc else "descending" if tri == desc else "none"
+            suivant = desc if tri == asc else asc
+            colonnes[col] = {"url": "?" + _qs(self.params(tri=suivant)), "aria": etat}
+        return colonnes
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        user = self.request.user
         for compte in ctx["object_list"]:
-            compte.gerable = peut_gerer_compte(self.request.user, compte)
-        get = self.request.GET
-        ctx["q"] = get.get("q", "")
-        ctx["role_actif"] = get.get("role", "")
-        ctx["statut"] = get.get("statut", "")
-        ctx["tri"] = get.get("tri", "") if get.get("tri") in self.TRIS else "identifiant"
-        ctx["tris"] = [(cle, libelle) for cle, (libelle, _) in self.TRIS.items()]
-        ctx["roles"] = Utilisateur.Role.choices
-        # Onglets de rôle avec effectifs (selon la recherche et le statut en cours).
-        effectifs = dict(self.get_base_queryset().order_by().values_list("role").annotate(n=Count("pk")))
+            compte.gerable = peut_gerer_compte(user, compte)
+        v = self.get_filtres()
+        tri = v.get("tri") or filtres.TRI_DEFAUT
+        ctx.update(
+            form_filtres=self._form, erreurs_filtres=self._form.errors,
+            q=v.get("q", ""), role_actif=v.get("role", ""), statut=v.get("statut", ""), tri=tri,
+            tris=[(cle, libelle) for cle, (libelle, _) in filtres.TRIS.items()], roles=Utilisateur.Role.choices,
+            par_page=self.get_paginate_by(None), choix_par_page=filtres.PAR_PAGE, vue=self.get_vue(),
+            kpis=self.contexte_kpi(v), puces=self.contexte_puces(v), colonnes=self.contexte_colonnes(tri),
+            total_global=Utilisateur.objects.count(),
+            url_vue_tableau="?" + _qs(self.params(vue="tableau")), url_vue_cartes="?" + _qs(self.params(vue="cartes")),
+            selectionnables=any(c.gerable and c.pk != user.pk for c in ctx["object_list"]),
+        )
+        # Onglets de rôle avec effectifs (selon les autres filtres en cours).
+        sans_role = {k: val for k, val in v.items() if k != "role"}
+        effectifs = dict(filtres.filtrer(Utilisateur.objects.all(), sans_role).order_by()
+                         .values_list("role").annotate(n=Count("pk")))
         ctx["onglets_roles"] = [(val, nom, effectifs.get(val, 0)) for val, nom in Utilisateur.Role.choices]
         ctx["total_tous_roles"] = sum(effectifs.values())
-        params = get.copy(); params.pop("page", None)
-        ctx["filtres"] = params.urlencode()
-        sans_role = params.copy(); sans_role.pop("role", None)
-        ctx["filtres_sans_role"] = sans_role.urlencode()
+        ctx["filtres"] = _qs(self.params())
+        ctx["filtres_sans_role"] = _qs(self.params(role=None))
         return ctx
 
 
@@ -282,9 +347,24 @@ class UtilisateurDetailView(AdminRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["evenements"] = self.object.evenements_organises.select_related("lieu")[:10]
-        ctx["inscriptions"] = self.object.inscriptions.select_related("evenement")[:10]
-        ctx["peut_gerer"] = peut_gerer_compte(self.request.user, self.object)
+        c = self.object
+        ctx["evenements"] = c.evenements_organises.select_related("lieu")[:10]
+        ctx["inscriptions"] = c.inscriptions.select_related("evenement")[:10]
+        ctx["peut_gerer"] = peut_gerer_compte(self.request.user, c)
+        ctx["protege"] = not ctx["peut_gerer"]
+        ctx["fiche_role"] = roles.fiche_role(c.role)
+        ctx["acces_admin_django"] = c.is_staff and c.is_active
+        # Activité métier : uniquement ce qui existe réellement dans les modèles (lecture seule, comptages).
+        activite = {"nb_evenements": c.evenements_organises.count()}
+        par_statut = dict(c.inscriptions.order_by().values_list("statut").annotate(n=Count("pk")))
+        activite["inscriptions"] = {"total": sum(par_statut.values()), "confirmees": par_statut.get("CONFIRMEE", 0),
+                                    "attente": par_statut.get("ATTENTE", 0), "annulees": par_statut.get("ANNULEE", 0)}
+        fiche = getattr(c, "prestataire", None)
+        if fiche is not None:
+            reservations = fiche.reservations.order_by().values_list("statut").annotate(n=Count("pk"))
+            activite["prestataire"] = {"fiche": fiche, "reservations": dict(reservations),
+                                       "nb_reservations": sum(n for _, n in reservations)}
+        ctx["activite"] = activite
         return ctx
 
 
@@ -293,6 +373,9 @@ class UtilisateurCreateView(AdminRequiredMixin, EnregistrementSurMixin, SuccessM
     form_class = UtilisateurCreationAdminForm
     template_name = "utilisateurs/utilisateur_form.html"
     success_message = "Le compte « %(username)s » a été créé."
+
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(catalogue_roles=roles.catalogue(), **kwargs)
 
     def get_success_url(self):
         return reverse_lazy("utilisateurs:utilisateur_detail", args=[self.object.pk])
@@ -308,16 +391,40 @@ class UtilisateurUpdateView(GestionCompteMixin, SuccessMessageMixin, UpdateView)
     def get_form_kwargs(self):
         return {**super().get_form_kwargs(), "acteur": self.request.user}
 
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(catalogue_roles=roles.catalogue(), **kwargs)
+
+    def confirmation_requise(self, avant, nouveau):
+        """Changement de rôle : il faut une confirmation explicite, pour CE nouveau rôle, à partir du rôle
+        actuellement en base (si un autre admin l'a changé entre-temps, on redemande). Vérifié côté serveur."""
+        if nouveau == avant.role:
+            return False
+        post = self.request.POST
+        return not (post.get("confirmer_role") == nouveau and post.get("role_initial") == avant.role)
+
+    def contexte_confirmation(self, form, avant, nouveau):
+        donnees, avertissements = roles.consequences_changement(avant, nouveau)
+        return self.get_context_data(form=form, confirmation={
+            "ancien": roles.fiche_role(avant.role), "nouveau": roles.fiche_role(nouveau),
+            "comparaison": roles.comparer_roles(avant.role, nouveau),
+            "gestion_comptes_retiree": avant.est_admin and not avant.is_superuser and nouveau != Utilisateur.Role.ADMIN,
+            "gestion_comptes_accordee": not avant.est_admin and nouveau == Utilisateur.Role.ADMIN,
+            "donnees": donnees, "avertissements": avertissements, "role_initial": avant.role})
+
     def form_valid(self, form):
         try:
             with transaction.atomic():
                 verrouiller_admins()
                 # nouveau contrôle sous verrou : un autre admin a pu changer d'état entre-temps
                 avant = Utilisateur.objects.get(pk=self.object.pk)
-                motif = motif_refus_changement(self.request.user, avant, role=form.cleaned_data["role"])
+                nouveau = form.cleaned_data["role"]
+                motif = motif_refus_changement(self.request.user, avant, role=nouveau)
                 if motif:
                     form.add_error("role", motif)
                     return self.form_invalid(form)
+                if self.confirmation_requise(avant, nouveau):
+                    # Rien n'est enregistré : on affiche l'étape de confirmation (même formulaire, mêmes valeurs).
+                    return self.render_to_response(self.contexte_confirmation(form, avant, nouveau))
                 return super().form_valid(form)
         except OperationalError:
             form.add_error(None, MSG_OPERATION_CONCURRENTE)
@@ -372,6 +479,97 @@ class UtilisateurStatutView(GestionCompteMixin, DetailView):
                 "désactivé : il ne peut plus se connecter (ses données sont conservées)"
             messages.success(request, f"Le compte « {self.object.username} » a été {etat}.")
         return redirect("utilisateurs:utilisateur_detail", pk=self.object.pk)
+
+
+MAX_SELECTION = max(filtres.PAR_PAGE)        # une action groupée porte au plus sur une page de résultats
+
+
+class UtilisateurActionGroupeeView(AdminRequiredMixin, TemplateView):
+    """Activation / désactivation de plusieurs comptes (POST uniquement, jeton CSRF).
+
+    1er POST : récapitulatif (concernés, déjà dans le statut, protégés, refusés), rien n'est modifié.
+    2e POST (``confirmer``) : TOUT est revérifié sous verrou (verrouiller_admins) ; si un seul compte est
+    interdit, rien n'est modifié (tout ou rien). Aucune suppression groupée.
+    """
+    template_name = "utilisateurs/utilisateur_action_groupee.html"
+    http_method_names = ["post"]
+    ACTIONS = {"activer": True, "desactiver": False}
+
+    def url_retour(self):
+        """Retour à la liste avec ses filtres. On ne réutilise que des paires clé=valeur, jamais une URL."""
+        params = QueryDict(self.request.POST.get("retour", "")[:1000])
+        return reverse("utilisateurs:utilisateur_liste") + (f"?{params.urlencode()}" if params else "")
+
+    def lire_selection(self):
+        """(action, ids, erreur). Identifiants validés : entiers, sans doublon, nombre limité."""
+        action = self.request.POST.get("action")
+        if action not in self.ACTIONS:
+            return None, [], "Action inconnue."
+        brut = self.request.POST.getlist("ids")
+        try:
+            ids = sorted({int(x) for x in brut})
+        except (TypeError, ValueError):
+            return action, [], "Sélection invalide."
+        if not ids:
+            return action, [], "Sélectionnez au moins un compte."
+        if len(ids) > MAX_SELECTION:
+            return action, [], f"Sélection trop grande : {MAX_SELECTION} comptes au maximum à la fois."
+        return action, ids, None
+
+    def analyser(self, action, ids):
+        """Classe chaque compte sélectionné. Toujours recalculé (jamais repris du 1er POST)."""
+        acteur, activer = self.request.user, self.ACTIONS[action]
+        comptes = list(Utilisateur.objects.filter(pk__in=ids).order_by("username"))
+        r = {"a_modifier": [], "deja": [], "proteges": [], "refuses": [],
+             "introuvables": len(set(ids) - {c.pk for c in comptes}), "comptes": comptes}
+        for c in comptes:
+            if not peut_gerer_compte(acteur, c):
+                r["proteges"].append((c, "Compte technique protégé : géré uniquement par un superutilisateur."))
+            elif c.is_active == activer:
+                r["deja"].append(c)
+            elif not activer and c.pk == acteur.pk:
+                r["refuses"].append((c, "Vous ne pouvez pas désactiver votre propre compte."))
+            else:
+                r["a_modifier"].append(c)
+        if not activer:
+            # Dernier administrateur actif : il doit en rester au moins un APRÈS l'opération groupée.
+            admins_vises = [c for c in r["a_modifier"] if c.est_admin]
+            if admins_vises and not admins_actifs().exclude(pk__in=[c.pk for c in r["a_modifier"]]).exists():
+                for c in admins_vises:
+                    r["a_modifier"].remove(c)
+                    r["refuses"].append((c, "Impossible : il ne resterait plus aucun administrateur actif."))
+        r["bloquant"] = bool(r["proteges"] or r["refuses"] or r["introuvables"])
+        return r
+
+    def post(self, request, *args, **kwargs):
+        action, ids, erreur = self.lire_selection()
+        if erreur:
+            messages.error(request, erreur)
+            return redirect(self.url_retour())
+        if not request.POST.get("confirmer"):
+            return self.render_to_response(self.get_context_data(
+                action=action, activer=self.ACTIONS[action], analyse=self.analyser(action, ids),
+                retour=request.POST.get("retour", ""), url_retour=self.url_retour()))
+        try:
+            with transaction.atomic():
+                verrouiller_admins()
+                analyse = self.analyser(action, ids)          # revérifié sous verrou, au moment de la confirmation
+                if analyse["bloquant"]:
+                    messages.error(request, "Aucun compte n'a été modifié : la sélection contient des comptes "
+                                            "protégés, introuvables ou interdits pour cette action.")
+                    return redirect(self.url_retour())
+                pks = [c.pk for c in analyse["a_modifier"]]
+                Utilisateur.objects.filter(pk__in=pks).update(is_active=self.ACTIONS[action])
+        except OperationalError:
+            messages.error(request, MSG_OPERATION_CONCURRENTE)
+            return redirect(self.url_retour())
+        verbe = "réactivé" if self.ACTIONS[action] else "désactivé"
+        n, deja = len(pks), len(analyse["deja"])
+        texte = f"{n} compte{'s' if n > 1 else ''} {verbe}{'s' if n > 1 else ''}."
+        if deja:
+            texte += f" {deja} déjà dans ce statut (inchangé{'s' if deja > 1 else ''})."
+        messages.success(request, texte)
+        return redirect(self.url_retour())
 
 
 class UtilisateurDeleteView(GestionCompteMixin, SuppressionMixin, DeleteView):

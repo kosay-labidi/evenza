@@ -77,11 +77,28 @@ def valider_mdp_infos_personnelles(mot_de_passe, user):
 # ---------------------------------------------------------------- photo de profil
 PHOTO_TAILLE_MAX_MO = 2
 PHOTO_EXTENSIONS = ("jpg", "jpeg", "png", "webp")
+PHOTO_FORMATS_REELS = ("JPEG", "PNG", "WEBP")         # format détecté par Pillow dans le CONTENU du fichier
+PHOTO_COTE_MAX = 4000                                 # pixels, largeur comme hauteur
+PHOTO_PIXELS_MAX = 16_000_000                         # 16 mégapixels : protège contre les « bombes » d'images
+
+
+def _image_envoyee(fichier):
+    """Image Pillow d'un fichier NOUVELLEMENT envoyé (posée par forms.ImageField), sinon None.
+    Une photo déjà enregistrée n'est pas relue à chaque enregistrement du compte (et surtout pas ouverte :
+    accéder à FieldFile.file ouvre le fichier stocké, ce qui empêcherait ensuite sa suppression sous Windows)."""
+    image = getattr(fichier, "image", None)
+    if image is not None:
+        return image
+    if getattr(fichier, "_committed", True):          # fichier déjà stocké : rien à revérifier
+        return None
+    return getattr(getattr(fichier, "file", None), "image", None)
 
 
 def valider_photo(fichier):
-    """Photo de profil : JPG, PNG ou WebP, 2 Mo au plus. (Le contenu est en plus vérifié par Pillow
-    via ImageField : un fichier renommé en .jpg qui n'est pas une image est refusé.)"""
+    """Photo de profil : JPG, PNG ou WebP réels, 2 Mo et 4000 × 4000 px (16 Mpx) au plus.
+
+    Le contenu est vérifié par Pillow (ImageField) : un fichier qui n'est pas une image est refusé, et le format
+    RÉEL (pas l'extension) doit être JPEG, PNG ou WebP : un GIF, un SVG ou un BMP renommé est refusé."""
     if not fichier:
         return fichier
     extension = fichier.name.rsplit(".", 1)[-1].lower() if "." in fichier.name else ""
@@ -90,4 +107,12 @@ def valider_photo(fichier):
                               code="photo_format")
     if fichier.size > PHOTO_TAILLE_MAX_MO * 1024 * 1024:
         raise ValidationError(f"La photo ne doit pas dépasser {PHOTO_TAILLE_MAX_MO} Mo.", code="photo_trop_lourde")
+    image = _image_envoyee(fichier)
+    if image is not None:
+        if (image.format or "").upper() not in PHOTO_FORMATS_REELS:
+            raise ValidationError("Le contenu du fichier n'est pas une image JPG, PNG ou WebP.", code="photo_format")
+        largeur, hauteur = image.size
+        if largeur > PHOTO_COTE_MAX or hauteur > PHOTO_COTE_MAX or largeur * hauteur > PHOTO_PIXELS_MAX:
+            raise ValidationError(f"Image trop grande : {PHOTO_COTE_MAX} × {PHOTO_COTE_MAX} pixels au maximum.",
+                                  code="photo_dimensions")
     return fichier

@@ -1304,3 +1304,437 @@ class PositionListeAttenteTests(GestionBase):
         self.client.logout()
         self.login("a")
         self.assertNotContains(self.client.get(self.ia.get_absolute_url()), "sur la liste d'attente")
+
+
+# =====================================================================================
+# Améliorations : transfert, .ics, e-mail de promotion, check-in caméra, tableau de bord,
+# export CSV, badge « Plus que X places »
+# =====================================================================================
+import csv as _csv  # noqa: E402
+import io as _io  # noqa: E402
+from decimal import Decimal  # noqa: E402
+
+from django.core import mail  # noqa: E402
+from django.test import Client  # noqa: E402
+
+from .calendrier import echapper, ics_inscription  # noqa: E402
+from .templatetags.participants_badges import badge_places  # noqa: E402
+
+
+def _commencer(evenement):
+    """L'événement a commencé (début passé, fin à venir)."""
+    Evenement.objects.filter(pk=evenement.pk).update(date_debut=timezone.now() - timedelta(hours=1),
+                                                     date_fin=timezone.now() + timedelta(hours=2))
+
+
+class TransfertModeleTests(GestionBase):
+    def setUp(self):
+        super().setUp()
+        self.c = Utilisateur.objects.create_user("c", password=MDP, email="C@Evenza.tn")
+        self.ia = Inscription.inscrire(self.e, self.a, self.vip, 2)
+
+    def test_transfert_reussi(self):
+        ancien = self.ia.code_billet
+        self.ia.transferer(self.b)
+        self.ia.refresh_from_db()
+        self.assertEqual(self.ia.participant, self.b)
+        self.assertNotEqual(self.ia.code_billet, ancien)
+        self.assertEqual((self.ia.type_billet, self.ia.quantite, self.ia.montant, self.ia.statut),
+                         (self.vip, 2, Decimal("100"), "CONFIRMEE"))
+        self.assertFalse(self.ia.present)
+        self.assertEqual(Inscription.objects.filter(evenement=self.e).count(), 1)      # pas de doublon
+
+    def test_refus_soi_meme(self):
+        with self.assertRaisesMessage(ValidationError, "propre billet"):
+            self.ia.transferer(self.a)
+
+    def test_refus_destinataire_deja_inscrit(self):
+        Inscription.inscrire(self.e, self.b)
+        with self.assertRaisesMessage(ValidationError, "déjà une réservation"):
+            self.ia.transferer(self.b)
+
+    def test_ligne_annulee_du_destinataire_remplacee(self):
+        ib = Inscription.inscrire(self.e, self.b)
+        ib.annuler()
+        self.ia.transferer(self.b)
+        self.assertFalse(Inscription.objects.filter(pk=ib.pk).exists())
+        self.assertEqual(Inscription.objects.get(evenement=self.e, participant=self.b).pk, self.ia.pk)
+
+    def test_refus_reservation_annulee_ou_en_attente(self):
+        self.ia.annuler()
+        with self.assertRaisesMessage(ValidationError, "annulée"):
+            self.ia.transferer(self.b)
+        Evenement.objects.filter(pk=self.e.pk).update(capacite=1)
+        Inscription.inscrire(self.e, self.c)                     # confirmée (1 place)
+        attente = Inscription.inscrire(self.e, self.b)
+        self.assertEqual(attente.statut, "ATTENTE")
+        with self.assertRaisesMessage(ValidationError, "confirmée"):
+            attente.transferer(self.a)
+
+    def test_refus_billet_deja_scanne(self):
+        Inscription.objects.filter(pk=self.ia.pk).update(present=True)
+        with self.assertRaisesMessage(ValidationError, "scanné"):
+            self.ia.transferer(self.b)
+
+    def test_refus_evenement_commence(self):
+        _commencer(self.e)
+        with self.assertRaisesMessage(ValidationError, "commencé"):
+            self.ia.transferer(self.b)
+
+    def test_refus_destinataire_inactif(self):
+        self.b.is_active = False
+        self.b.save()
+        with self.assertRaises(ValidationError):
+            self.ia.transferer(self.b)
+
+
+class TransfertVueTests(GestionBase):
+    def setUp(self):
+        super().setUp()
+        self.c = Utilisateur.objects.create_user("c", password=MDP, email="C@Evenza.tn")
+        self.ia = Inscription.inscrire(self.e, self.a, self.std, 1)
+        self.url = reverse("participants:inscription_transferer", args=[self.ia.pk])
+
+    def test_confirmation_puis_transfert_par_email(self):
+        self.login("a")
+        ancien_billet = self.ia.get_absolute_url()
+        r = self.client.post(self.url, {"destinataire": "c@evenza.TN"})          # étape 2 : confirmation
+        self.assertContains(r, "Confirmer le transfert")
+        self.ia.refresh_from_db()
+        self.assertEqual(self.ia.participant, self.a)                           # rien n'a changé
+        r = self.client.post(self.url, {"destinataire": "c@evenza.TN", "etape": "confirmer"}, follow=True)
+        self.assertContains(r, "Billet transféré à c")
+        self.ia.refresh_from_db()
+        self.assertEqual(self.ia.participant, self.c)
+        self.assertEqual(self.client.get(ancien_billet).status_code, 404)        # l'ancien code ne marche plus
+        self.client.logout()
+        self.login("c")
+        self.assertEqual(self.client.get(self.ia.get_absolute_url()).status_code, 200)
+
+    def test_destinataire_inconnu(self):
+        self.login("a")
+        r = self.client.post(self.url, {"destinataire": "personne", "etape": "confirmer"})
+        self.assertContains(r, "Aucun compte actif")
+        self.ia.refresh_from_db()
+        self.assertEqual(self.ia.participant, self.a)
+
+    def test_soi_meme_refuse_avec_message(self):
+        self.login("a")
+        r = self.client.post(self.url, {"destinataire": "A", "etape": "confirmer"})
+        self.assertContains(r, "propre billet")
+
+    def test_reservation_d_un_autre_404_et_anonyme(self):
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+        self.login("b")
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_evenement_commence_redirige_avec_message(self):
+        _commencer(self.e)
+        self.login("a")
+        r = self.client.get(self.url, follow=True)
+        self.assertRedirects(r, reverse("participants:mes_inscriptions"))
+        self.assertContains(r, "commencé")
+
+    def test_bouton_dans_mes_inscriptions(self):
+        self.login("a")
+        self.assertContains(self.client.get(reverse("participants:mes_inscriptions")), self.url)
+
+
+class CalendrierIcsTests(GestionBase):
+    def setUp(self):
+        super().setUp()
+        self.ia = Inscription.inscrire(self.e, self.a, self.vip, 1)
+        self.url = reverse("participants:billet_ics", args=[self.ia.code_billet])
+
+    def test_contenu_et_en_tetes(self):
+        from datetime import timezone as dt_tz
+        self.login("a")
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r["Content-Type"].startswith("text/calendar"))
+        self.assertIn("attachment;", r["Content-Disposition"])
+        self.assertIn(".ics", r["Content-Disposition"])
+        texte = r.content.decode("utf-8")
+        self.assertTrue(texte.startswith("BEGIN:VCALENDAR\r\n"))
+        self.assertTrue(texte.endswith("END:VCALENDAR\r\n"))
+        self.assertNotIn("\n", texte.replace("\r\n", ""))                       # uniquement des CRLF
+        debut = self.e.date_debut.astimezone(dt_tz.utc).strftime("%Y%m%dT%H%M%SZ")
+        for attendu in ("VERSION:2.0", "BEGIN:VEVENT", f"UID:{self.ia.code_billet}@evenza", f"DTSTART:{debut}",
+                        "DTEND:", "DTSTAMP:", "SUMMARY:Festival", "LOCATION:L\\, a\\, Tunis", "END:VEVENT"):
+            self.assertIn(attendu, texte)
+
+    def test_caracteres_speciaux_et_lignes_repliees(self):
+        self.assertEqual(echapper("Gala; jazz, rock \\ nuit\nfin"), "Gala\\; jazz\\, rock \\\\ nuit\\nfin")
+        Evenement.objects.filter(pk=self.e.pk).update(titre="Soirée « été » ; jazz, " + "très long titre " * 8)
+        self.ia = Inscription.objects.select_related("evenement", "evenement__lieu").get(pk=self.ia.pk)
+        texte = ics_inscription(self.ia)
+        for ligne in texte.split("\r\n"):
+            self.assertLessEqual(len(ligne.encode("utf-8")), 75)
+        deplie = texte.replace("\r\n ", "")                                     # dépliage RFC 5545
+        self.assertIn("SUMMARY:Soirée « été » \\; jazz\\, " + "très long titre " * 3, deplie)
+
+    def test_refus_autre_annulee_anonyme_organisateur(self):
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+        for nom in ("b", "org", "adm"):
+            self.login(nom)
+            self.assertEqual(self.client.get(self.url).status_code, 404)
+            self.client.logout()
+        self.ia.annuler()
+        self.login("a")
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_boutons_billet_et_mes_inscriptions(self):
+        self.login("a")
+        self.assertContains(self.client.get(self.ia.get_absolute_url()), self.url)
+        self.assertContains(self.client.get(reverse("participants:mes_inscriptions")), self.url)
+
+
+class NotificationPromotionTests(GestionBase):
+    def setUp(self):
+        super().setUp()
+        Evenement.objects.filter(pk=self.e.pk).update(capacite=1)
+        self.e.refresh_from_db()
+        self.b.email = "b@evenza.tn"
+        self.b.save()
+        self.ia = Inscription.inscrire(self.e, self.a)
+        self.ib = Inscription.inscrire(self.e, self.b)
+        self.assertEqual(self.ib.statut, "ATTENTE")
+
+    def test_promotion_par_annuler_envoie_un_seul_email(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.ia.annuler()
+        self.ib.refresh_from_db()
+        self.assertEqual(self.ib.statut, "CONFIRMEE")
+        self.assertEqual(len(mail.outbox), 1)                                   # pas de doublon
+        m = mail.outbox[0]
+        self.assertEqual(m.to, ["b@evenza.tn"])
+        self.assertIn("Festival", m.subject)
+        self.assertIn("Festival", m.body)
+        self.assertIn(self.ib.get_absolute_url(), m.body)
+        self.assertIn(self.ib.code_court, m.body)
+
+    def test_email_envoye_seulement_apres_validation(self):
+        with self.captureOnCommitCallbacks(execute=False) as rappels:
+            self.ia.annuler()
+        self.assertEqual(len(mail.outbox), 0)                                  # rien tant que la transaction n'est pas validée
+        self.assertEqual(len(rappels), 1)
+
+    def test_promotion_par_modifier(self):
+        Evenement.objects.filter(pk=self.e.pk).update(capacite=2)
+        Inscription.objects.filter(pk=self.ia.pk).update(quantite=2)           # a occupe les 2 places
+        self.ia.refresh_from_db()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.ia.modifier(self.std, 1)                                      # l'événement a des types : il en faut un
+        self.ib.refresh_from_db()
+        self.assertEqual(self.ib.statut, "CONFIRMEE")
+        self.assertEqual([m.to for m in mail.outbox], [["b@evenza.tn"]])
+
+    def test_pas_d_email_sans_adresse(self):
+        self.b.email = ""
+        self.b.save()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.ia.annuler()
+        self.ib.refresh_from_db()
+        self.assertEqual(self.ib.statut, "CONFIRMEE")
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_pas_d_email_sans_promotion_ni_a_la_creation(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.ib.annuler()                                                  # annulation d'une attente : personne promu
+            Inscription.inscrire(self.e2, self.b)                              # création directe en CONFIRMEE
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_echec_d_envoi_ne_bloque_pas_l_annulation(self):
+        with mock.patch("participants.notifications.send_mail", side_effect=OSError("SMTP en panne")):
+            with self.assertLogs("participants.notifications", level="ERROR"):
+                with self.captureOnCommitCallbacks(execute=True):
+                    self.ia.annuler()
+        self.ia.refresh_from_db()
+        self.ib.refresh_from_db()
+        self.assertEqual((self.ia.statut, self.ib.statut), ("ANNULEE", "CONFIRMEE"))
+
+    def test_annulation_par_l_organisateur_notifie_aussi(self):
+        self.login("org")
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(reverse("participants:inscription_annuler", args=[self.ia.pk]))
+        self.assertEqual(len(mail.outbox), 1)
+
+
+class CheckinCameraTests(GestionBase):
+    def setUp(self):
+        super().setUp()
+        self.url = reverse("participants:checkin", args=[self.e.pk])
+        self.ia = Inscription.inscrire(self.e, self.a)
+
+    def scanner(self, code):
+        r = self.client.post(self.url, {"code": code}, HTTP_ACCEPT="application/json")
+        return r, r.json()
+
+    def test_page_contient_le_lecteur_et_la_saisie_manuelle(self):
+        self.login("org")
+        r = self.client.get(self.url)
+        self.assertContains(r, 'id="scan-start"')
+        self.assertContains(r, "html5-qrcode@2.3.8/html5-qrcode.min.js")
+        self.assertContains(r, 'integrity="sha384-')
+        self.assertContains(r, 'name="code"')
+        self.assertContains(r, "csrfmiddlewaretoken")
+
+    def test_resultats_valide_deja_present_inconnu_non_confirme(self):
+        self.login("org")
+        r, j = self.scanner(str(self.ia.code_billet))                           # code complet du QR (avec tirets)
+        self.assertEqual((r.status_code, j["resultat"], j["presents"]), (200, "valide", 1))
+        self.assertEqual(self.scanner(str(self.ia.code_billet))[1]["resultat"], "deja_present")
+        self.assertEqual(self.scanner("0123abcd")[1]["resultat"], "inconnu")
+        ib = Inscription.inscrire(self.e, self.b)
+        ib.annuler()
+        _, j = self.scanner(ib.code_court)
+        self.assertEqual(j["resultat"], "non_confirme")
+        self.assertIn("non confirmé", j["message"])
+        r, j = self.scanner("xyz")
+        self.assertEqual((r.status_code, j["resultat"]), (400, "invalide"))
+
+    def test_csrf_obligatoire_et_permissions(self):
+        c = Client(enforce_csrf_checks=True)
+        c.login(username="org", password=MDP)
+        self.assertEqual(c.post(self.url, {"code": self.ia.code_court}, HTTP_ACCEPT="application/json").status_code, 403)
+        self.ia.refresh_from_db()
+        self.assertFalse(self.ia.present)
+        self.login("org2")
+        r = self.client.post(self.url, {"code": self.ia.code_court}, HTTP_ACCEPT="application/json")
+        self.assertEqual(r.status_code, 403)
+
+    def test_formulaire_classique_inchange(self):
+        self.login("org")
+        r = self.client.post(self.url, {"code": self.ia.code_court}, follow=True)
+        self.assertRedirects(r, self.url)
+        self.assertContains(r, "Entrée enregistrée")
+
+
+class TableauBordTests(GestionBase):
+    def setUp(self):
+        super().setUp()
+        self.url = reverse("participants:tableau_de_bord", args=[self.e.pk])
+
+    def test_chiffres_exacts(self):
+        Evenement.objects.filter(pk=self.e.pk).update(capacite=4)
+        ia = Inscription.inscrire(self.e, self.a, self.vip, 2)                  # 100 DT
+        ib = Inscription.inscrire(self.e, self.b, self.std, 1)                  # 10 DT
+        c = Utilisateur.objects.create_user("c", password=MDP)
+        d = Utilisateur.objects.create_user("d", password=MDP)
+        dd = Inscription.inscrire(self.e, d, self.std, 1)                       # confirmée puis annulée
+        dd.annuler()
+        Inscription.inscrire(self.e, c, self.std, 2)                            # attente (1 place restante)
+        Inscription.objects.filter(pk=ia.pk).update(present=True)
+        self.termine()
+        Avis.objects.create(inscription=ia, note=4)
+        Avis.objects.create(inscription=ib, note=5)
+        self.login("org")
+        r = self.client.get(self.url)
+        k = r.context["indicateurs"]
+        self.assertEqual((k["confirmes"], k["places_confirmees"], k["attente"], k["annules"]), (2, 3, 1, 1))
+        self.assertEqual(k["taux_remplissage"], 75)
+        self.assertEqual(k["chiffre_affaires"], Decimal("110"))
+        self.assertEqual(k["taux_presence"], 50)
+        self.assertEqual(k["note_moyenne"], 4.5)
+        g = r.context["graphiques"]
+        self.assertEqual(g["statuts"]["valeurs"], [2, 1, 1])
+        self.assertEqual(dict(zip(g["ventes"]["labels"], g["ventes"]["places"])), {"VIP": 2, "Standard": 1})
+        self.assertEqual(sum(g["jours"]["valeurs"]), 4)
+        self.assertContains(r, 'id="donnees-graphiques"')
+        self.assertContains(r, "chart.js@4.4.1")
+
+    def test_evenement_vide(self):
+        self.login("org")
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 200)
+        k = r.context["indicateurs"]
+        self.assertEqual((k["confirmes"], k["taux_remplissage"], k["taux_presence"], k["note_moyenne"]), (0, 0, 0, None))
+        self.assertNotContains(r, "chart.js")
+
+    def test_permissions(self):
+        self.assertEqual(self.client.get(self.url).status_code, 302)            # anonyme
+        for nom, attendu in (("org", 200), ("adm", 200), ("org2", 403), ("a", 403)):
+            self.login(nom)
+            self.assertEqual(self.client.get(self.url).status_code, attendu, nom)
+            self.client.logout()
+
+
+class ExportCsvTests(GestionBase):
+    def setUp(self):
+        super().setUp()
+        self.a.first_name, self.a.last_name, self.a.email = "Amel", "Ben Ali", "amel@evenza.tn"
+        self.a.save()
+        self.ia = Inscription.inscrire(self.e, self.a, self.vip, 2)
+        self.ib = Inscription.inscrire(self.e, self.b, self.std, 1)
+        self.ib.annuler()
+        self.i2 = Inscription.inscrire(self.e2, self.a)
+        self.url = reverse("participants:inscription_export")
+
+    def lire(self, r):
+        self.assertTrue(r.content.startswith(b"\xef\xbb\xbf"))                  # BOM utf-8-sig pour Excel
+        return list(_csv.reader(_io.StringIO(r.content.decode("utf-8-sig")), delimiter=";"))
+
+    def test_en_tetes_et_lignes(self):
+        self.login("org")
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r["Content-Type"].startswith("text/csv"))
+        self.assertIn("attachment;", r["Content-Disposition"])
+        lignes = self.lire(r)
+        self.assertEqual(lignes[0], ["Nom", "E-mail", "Type de billet", "Quantité", "Montant (DT)", "Statut",
+                                     "Date d'inscription", "Présent", "Code"])
+        self.assertEqual(len(lignes), 3)                                        # seulement l'événement de org
+        amel = next(l for l in lignes[1:] if l[0] == "Amel Ben Ali")
+        self.assertEqual(amel[1:6], ["amel@evenza.tn", "VIP", "2", "100,00", "Confirmée"])
+        self.assertEqual((amel[7], amel[8]), ("Non", self.ia.code_court))
+        b = next(l for l in lignes[1:] if l[0] == "b")
+        self.assertEqual((b[2], b[5]), ("Standard", "Annulée"))
+
+    def test_filtres_de_la_liste_appliques(self):
+        self.login("adm")
+        self.assertEqual(len(self.lire(self.client.get(self.url))), 4)          # l'admin voit tout
+        lignes = self.lire(self.client.get(self.url, {"evenement": self.e.pk, "statut": "CONFIRMEE"}))
+        self.assertEqual([l[0] for l in lignes[1:]], ["Amel Ben Ali"])
+
+    def test_formules_neutralisees(self):
+        self.b.first_name = "=HYPERLINK(1)"
+        self.b.save()
+        self.login("org")
+        lignes = self.lire(self.client.get(self.url))
+        self.assertIn("'=HYPERLINK(1)", [l[0] for l in lignes])
+
+    def test_permissions_et_bouton(self):
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+        self.login("a")
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+        self.client.logout()
+        self.login("org")
+        self.assertContains(self.client.get(reverse("participants:inscription_liste")), "Exporter CSV")
+        self.assertContains(self.client.get(reverse("participants:liste", args=[self.e.pk])),
+                            f"{self.url}?evenement={self.e.pk}")
+
+
+class BadgePlacesTests(GestionBase):
+    def test_balise(self):
+        self.assertEqual(badge_places(None), "")
+        self.assertEqual(badge_places(6), "")
+        self.assertIn("Plus que 5 places", badge_places(5))
+        self.assertIn("Plus que 1 place<", badge_places(1))
+        self.assertIn("Complet", badge_places(0))
+
+    def test_page_de_reservation(self):
+        self.login("a")
+        url = reverse("participants:reserver", args=[self.e.pk])
+        self.assertContains(self.client.get(url), "Plus que 5 places")          # VIP : quota 5
+        Inscription.inscrire(self.e, self.b, self.vip, 5)
+        r = self.client.get(url)
+        self.assertContains(r, "Complet")                                       # VIP épuisé
+        self.assertContains(r, "Plus que 5 places")                             # événement : 5 places sur 10
+
+    def test_page_de_modification(self):
+        ia = Inscription.inscrire(self.e, self.a, self.std, 1)
+        Inscription.inscrire(self.e, self.b, self.std, 7)                       # 2 places restantes
+        self.login("a")
+        r = self.client.get(reverse("participants:inscription_modifier", args=[ia.pk]))
+        self.assertContains(r, "Plus que 2 places")
+        self.assertContains(r, "Plus que 5 places")                             # VIP

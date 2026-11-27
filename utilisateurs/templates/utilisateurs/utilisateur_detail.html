@@ -1,13 +1,17 @@
-{% extends "app_base.html" %}{% block title %}{{ compte.username }}{% endblock %}
+{% extends "app_base.html" %}{% load static %}{% block title %}{{ compte.username }}{% endblock %}
+{% block app_head %}<link rel="stylesheet" href="{% static 'utilisateurs/css/utilisateurs.css' %}">{% endblock %}
 {% block banner %}
+{# ---- Identité ---- #}
 <section class="page-banner">
   <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
   <span class="avatar" aria-hidden="true" style="width:88px;height:88px;font-size:32px;overflow:hidden;border:3px solid rgba(208,160,109,.55)">{% if compte.photo %}<img src="{{ compte.photo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block">{% else %}{{ compte.initiales }}{% endif %}</span>
-  <div><span class="eyebrow">{{ compte.get_role_display }}</span><h1>{{ compte.get_full_name|default:compte.username }}</h1><p>@{{ compte.username }} · inscrit le {{ compte.date_joined|date:"d/m/Y" }}</p></div>
+  <div><span class="eyebrow">{{ compte.get_role_display }}</span><h1>{{ compte.get_full_name|default:compte.username }}</h1>
+    <p>@{{ compte.username }} · {% if compte.is_active %}<span class="badge confirmee">Actif</span>{% else %}<span class="badge annulee">Désactivé</span>{% endif %}
+      {% if compte.is_superuser %}<span class="badge">Superutilisateur</span>{% endif %}{% if protege %} <span class="chip soft">Compte technique protégé</span>{% endif %}</p></div>
   </div>
+  {# ---- Actions administratives : uniquement celles réellement autorisées ---- #}
   <div class="actions">
-    {% if peut_gerer %}<a class="btn primary" href="{% url 'utilisateurs:utilisateur_modifier' compte.pk %}">Modifier</a>
-    {% else %}<span class="chip soft">Compte technique protégé</span>{% endif %}
+    {% if peut_gerer %}<a class="btn primary" href="{% url 'utilisateurs:utilisateur_modifier' compte.pk %}">Modifier</a>{% endif %}
     {% if peut_gerer and compte.pk != user.pk %}{% if compte.is_active %}<a class="btn outline" href="{% url 'utilisateurs:utilisateur_desactiver' compte.pk %}">Désactiver</a>{% else %}<a class="btn outline" href="{% url 'utilisateurs:utilisateur_reactiver' compte.pk %}">Réactiver</a>{% endif %}
     <a class="btn ghost danger-text" href="{% url 'utilisateurs:utilisateur_supprimer' compte.pk %}">Supprimer</a>{% endif %}
     <a class="btn ghost" href="{% url 'utilisateurs:utilisateur_liste' %}">← Liste</a>
@@ -15,30 +19,66 @@
 </section>
 {% endblock %}
 {% block content %}
-<div class="dash-grid">
+<div class="u-sections">
+  <section class="panel" aria-labelledby="t-coord"><div class="panel-head"><h2 id="t-coord">Coordonnées</h2></div>
+    <ul class="u-liste">
+      <li><span class="muted">E-mail</span><b>{% if compte.email %}<a href="mailto:{{ compte.email }}">{{ compte.email }}</a>{% else %}—{% endif %}</b></li>
+      <li><span class="muted">Téléphone</span><b>{{ compte.telephone|default:"—" }}</b></li>
+      <li><span class="muted">Identifiant</span><b>@{{ compte.username }}</b></li>
+    </ul>
+  </section>
+  <section class="panel" aria-labelledby="t-compte"><div class="panel-head"><h2 id="t-compte">Informations du compte</h2></div>
+    <ul class="u-liste">
+      <li><span class="muted">Créé le</span><b>{{ compte.date_joined|date:"d/m/Y à H:i" }}</b></li>
+      <li><span class="muted">Ancienneté</span><b>{{ compte.date_joined|timesince }}</b></li>
+      <li><span class="muted">Dernière connexion</span><b>{% if compte.last_login %}{{ compte.last_login|date:"d/m/Y à H:i" }}{% else %}Jamais connecté{% endif %}</b></li>
+      {% if compte.last_login %}<li><span class="muted">Depuis la dernière connexion</span><b>{{ compte.last_login|timesince }}</b></li>{% endif %}
+      <li><span class="muted">Statut</span><b>{% if compte.is_active %}Actif{% else %}Désactivé (connexion bloquée, données conservées){% endif %}</b></li>
+    </ul>
+  </section>
+  <section class="panel" aria-labelledby="t-activite"><div class="panel-head"><h2 id="t-activite">Activité métier</h2></div>
+    <ul class="u-liste">
+      {% if compte.est_organisateur or activite.nb_evenements %}<li><span class="muted">Événements organisés</span><b>{{ activite.nb_evenements }}</b></li>{% endif %}
+      <li><span class="muted">Réservations de billets</span><b>{{ activite.inscriptions.total }}</b></li>
+      {% if activite.inscriptions.total %}<li><span class="muted">… dont confirmées / en attente / annulées</span><b>{{ activite.inscriptions.confirmees }} / {{ activite.inscriptions.attente }} / {{ activite.inscriptions.annulees }}</b></li>{% endif %}
+      {% if activite.prestataire %}<li><span class="muted">Fiche prestataire</span><b>{{ activite.prestataire.fiche }}</b></li>
+      <li><span class="muted">Réservations reçues</span><b>{{ activite.prestataire.nb_reservations }}</b></li>
+      {% elif compte.est_prestataire %}<li><span class="muted">Fiche prestataire</span><b>Aucune fiche rattachée</b></li>{% endif %}
+    </ul>
+    {% if compte.est_client %}<p class="muted small" style="margin:10px 0 0">Aucune donnée « client » propre (demande d'événement) n'existe encore dans l'application.</p>{% endif %}
+  </section>
+</div>
+
+{# ---- Autorisations : calculées depuis les règles centralisées (core.permissions / core.navigation) ---- #}
+<section class="panel" aria-labelledby="t-autor" style="margin-bottom:20px"><div class="panel-head"><h2 id="t-autor">Autorisations · {{ fiche_role.libelle }}</h2><span class="muted small">{{ fiche_role.niveau }}</span></div>
+  <p style="margin-top:0">{{ fiche_role.description }}</p>
+  <p class="u-sous-titre">Modules accessibles (appliqué)</p>
+  <ul class="u-puces-roles">{% for m in fiche_role.modules %}<li>{{ m }}</li>{% empty %}<li>Aucun module de gestion</li>{% endfor %}</ul>
+  <p class="u-sous-titre">Espace personnel (appliqué)</p>
+  <ul class="u-puces-roles">{% for m in fiche_role.espace_personnel %}<li>{{ m }}</li>{% endfor %}{% for m in fiche_role.espaces_dedies %}<li>{{ m }}</li>{% endfor %}</ul>
+  <div class="u-sections" style="margin-bottom:0">
+    <div><p class="u-sous-titre">Fonctionnalités autorisées</p><ul class="u-points">{% for f in fiche_role.fonctions %}<li>{{ f }}</li>{% endfor %}</ul></div>
+    <div><p class="u-sous-titre">Restrictions</p><ul class="u-points">{% for r in fiche_role.restrictions %}<li>{{ r }}</li>{% endfor %}
+      {% if compte.is_superuser %}<li>Superutilisateur : tous les droits techniques (géré uniquement par un superutilisateur)</li>{% endif %}
+      <li>Administration Django : {% if acces_admin_django %}autorisée (compte technique « staff »){% else %}non (drapeau technique distinct du rôle){% endif %}</li></ul></div>
+  </div>
+  {% if fiche_role.preparees %}<p class="u-sous-titre">Préparées, pas encore appliquées</p><ul class="u-points u-prepare">{% for p in fiche_role.preparees %}<li>{{ p }}</li>{% endfor %}</ul>{% endif %}
+</section>
+
+<div class="dash-grid one">
   <section class="panel">
-    <div class="panel-head"><h2>Événements organisés</h2><span class="muted small">{{ compte.evenements_organises.count }}</span></div>
+    <div class="panel-head"><h2>Événements organisés</h2><span class="muted small">{{ activite.nb_evenements }}</span></div>
     <div class="table-wrap flat"><table class="table"><thead><tr><th>Titre</th><th>Date</th><th>Lieu</th><th>Statut</th></tr></thead><tbody>
     {% for e in evenements %}<tr><td><a href="{{ e.get_absolute_url }}">{{ e.titre }}</a></td><td>{{ e.date_debut|date:"d/m/Y H:i" }}</td><td>{{ e.lieu.ville }}</td><td><span class="badge {{ e.statut|lower }}">{{ e.get_statut_display }}</span></td></tr>
     {% empty %}<tr><td colspan="4" class="muted">Aucun événement organisé.</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
   <section class="panel">
-    <div class="panel-head"><h2>Coordonnées</h2></div>
-    <ul class="tlist">
-      <li><span class="muted">E-mail</span><b>{{ compte.email|default:"—" }}</b></li>
-      <li><span class="muted">Téléphone</span><b>{{ compte.telephone|default:"—" }}</b></li>
-      <li><span class="muted">Rôle</span><b>{{ compte.get_role_display }}</b></li>
-      <li><span class="muted">Statut</span><b>{% if compte.is_active %}Actif{% else %}Désactivé{% endif %}</b></li>
-      <li><span class="muted">Dernière connexion</span><b>{{ compte.last_login|date:"d/m/Y H:i"|default:"Jamais" }}</b></li>
-    </ul>
+    <div class="panel-head"><h2>Inscriptions</h2><span class="muted small">{{ activite.inscriptions.total }}</span></div>
+    <div class="table-wrap flat"><table class="table"><thead><tr><th>Événement</th><th>Date</th><th>Places</th><th>Statut</th></tr></thead><tbody>
+    {% for i in inscriptions %}<tr><td><a href="{{ i.evenement.get_absolute_url }}">{{ i.evenement }}</a></td><td>{{ i.evenement.date_debut|date:"d/m/Y" }}</td><td>× {{ i.quantite }}</td><td><span class="badge {{ i.statut|lower }}">{{ i.get_statut_display }}</span></td></tr>
+    {% empty %}<tr><td colspan="4" class="muted">Aucune inscription.</td></tr>{% endfor %}
+    </tbody></table></div>
   </section>
 </div>
-<section class="panel">
-  <div class="panel-head"><h2>Inscriptions</h2><span class="muted small">{{ compte.inscriptions.count }}</span></div>
-  <div class="table-wrap flat"><table class="table"><thead><tr><th>Événement</th><th>Date</th><th>Places</th><th>Statut</th></tr></thead><tbody>
-  {% for i in inscriptions %}<tr><td><a href="{{ i.evenement.get_absolute_url }}">{{ i.evenement }}</a></td><td>{{ i.evenement.date_debut|date:"d/m/Y" }}</td><td>× {{ i.quantite }}</td><td><span class="badge {{ i.statut|lower }}">{{ i.get_statut_display }}</span></td></tr>
-  {% empty %}<tr><td colspan="4" class="muted">Aucune inscription.</td></tr>{% endfor %}
-  </tbody></table></div>
-</section>
 {% endblock %}

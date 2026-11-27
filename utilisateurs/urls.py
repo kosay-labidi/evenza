@@ -18,6 +18,8 @@ urlpatterns = [
     # gestion des utilisateurs (administrateur)
     path("utilisateurs/", views.UtilisateurListView.as_view(), name="utilisateur_liste"),
     path("utilisateurs/nouveau/", views.UtilisateurCreateView.as_view(), name="utilisateur_creer"),
+    path("utilisateurs/actions-groupees/", views.UtilisateurActionGroupeeView.as_view(),
+         name="utilisateur_action_groupee"),
     path("utilisateurs/<int:pk>/", views.UtilisateurDetailView.as_view(), name="utilisateur_detail"),
     path("utilisateurs/<int:pk>/modifier/", views.UtilisateurUpdateView.as_view(), name="utilisateur_modifier"),
     path("utilisateurs/<int:pk>/desactiver/", views.UtilisateurStatutView.as_view(activer=False),

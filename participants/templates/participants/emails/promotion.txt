@@ -1,0 +1,18 @@
+{% autoescape off %}Bonjour {{ participant.get_full_name|default:participant.username }},
+
+Une place s'est libérée : votre réservation sur la liste d'attente est maintenant confirmée.
+
+Événement : {{ evenement.titre }}
+Date : {{ evenement.date_debut|date:"l d F Y à H:i" }}
+Lieu : {{ evenement.lieu.nom }}, {{ evenement.lieu.adresse }}, {{ evenement.lieu.ville }}
+Billet : {% if inscription.type_billet %}{{ inscription.type_billet.nom }}{% else %}Entrée{% endif %} × {{ inscription.quantite }}
+Montant : {% if inscription.montant %}{{ inscription.montant|floatformat:2 }} DT{% else %}Gratuit{% endif %}
+Code du billet : {{ inscription.code_court }}
+
+Votre billet (QR code) : {{ lien_billet }}
+Vous le retrouvez aussi dans « Mes billets » sur Évenza.
+
+Si vous ne pouvez plus venir, annulez votre réservation depuis « Mes billets » pour libérer la place.
+
+L'équipe Évenza
+{% endautoescape %}

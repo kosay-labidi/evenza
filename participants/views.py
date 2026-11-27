@@ -1,4 +1,6 @@
+import csv
 import re
+from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -6,19 +8,20 @@ from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.db.models import Avg, Count, Q, Sum
-from django.db.models.functions import Coalesce
-from django.http import Http404
+from django.db.models.functions import Coalesce, TruncDate
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
 from django.urls import reverse_lazy
-from django.views.generic import CreateView, DeleteView, DetailView, FormView, ListView, UpdateView
+from django.views.generic import CreateView, DeleteView, DetailView, FormView, ListView, TemplateView, UpdateView
 
 from core.mixins import ModuleRequiredMixin, ProprietaireEvenementMixin, SuppressionMixin
 from core.permissions import evenements_geres
 from evenements.models import Evenement
 
-from .forms import AvisForm, CheckinForm, ModificationReservationForm, ReservationForm, TypeBilletForm
+from .calendrier import ics_inscription
+from .forms import AvisForm, CheckinForm, ModificationReservationForm, ReservationForm, TransfertForm, TypeBilletForm
 from .models import Avis, Inscription, TypeBillet
 
 
@@ -127,6 +130,58 @@ class AnnulerInscriptionView(LoginRequiredMixin, View):
         return redirect("participants:mes_inscriptions")
 
 
+class TransfertInscriptionView(LoginRequiredMixin, FormView):
+    """Transfert de SA réservation à un autre utilisateur : 1. saisie du destinataire, 2. confirmation, 3. transfert.
+    Toute la règle métier (statut, présence, date, destinataire, verrou) est dans ``Inscription.transferer()``."""
+    form_class = TransfertForm
+    template_name = "participants/inscription_transfert.html"
+
+    def get_inscription(self):
+        if not hasattr(self, "_inscription"):
+            self._inscription = get_object_or_404(
+                Inscription.objects.select_related("evenement", "evenement__lieu", "type_billet"), pk=self.kwargs["pk"],
+                participant=self.request.user)                    # jamais la réservation d'un autre
+        return self._inscription
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            motif = self.get_inscription().motif_refus_transfert()
+            if motif:
+                messages.error(request, motif)
+                return redirect("participants:mes_inscriptions")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        insc = self.get_inscription()
+        return super().get_context_data(inscription=insc, evenement=insc.evenement, **kwargs)
+
+    def form_valid(self, form):
+        insc, dest = self.get_inscription(), form.cleaned_data["destinataire"]
+        if self.request.POST.get("etape") != "confirmer":                # étape 2 : confirmation
+            return self.render_to_response(self.get_context_data(form=form, destinataire=dest, confirmation=True))
+        try:
+            insc.transferer(dest)
+        except ValidationError as err:
+            form.add_error(None, err)
+            return self.form_invalid(form)
+        messages.success(self.request, f"Billet transféré à {dest}. Votre ancien QR code n'est plus valable.")
+        return redirect("participants:mes_inscriptions")
+
+
+class BilletIcsView(LoginRequiredMixin, View):
+    """Fichier .ics (« Ajouter au calendrier ») d'une réservation non annulée du participant connecté (404 sinon,
+    y compris pour l'organisateur et l'admin)."""
+
+    def get(self, request, code_billet):
+        insc = get_object_or_404(Inscription.objects.select_related("evenement", "evenement__lieu", "type_billet")
+                                 .exclude(statut=Inscription.Statut.ANNULEE),
+                                 code_billet=code_billet, participant=request.user)
+        contenu = ics_inscription(insc, request.build_absolute_uri(insc.get_absolute_url()))
+        reponse = HttpResponse(contenu, content_type="text/calendar; charset=utf-8")
+        reponse["Content-Disposition"] = f'attachment; filename="evenza-{insc.code_court}.ics"'
+        return reponse
+
+
 class MesInscriptionsView(LoginRequiredMixin, ListView):
     template_name = "participants/mes_inscriptions.html"
 
@@ -216,6 +271,79 @@ class ParticipantsEvenementView(ProprietaireEvenementMixin, InscriptionFiltresMi
         return super().get_context_data(evenement=self.get_evenement(), **kwargs)
 
 
+class InscriptionExportCsvView(InscriptionListView):
+    """Export CSV des inscriptions : mêmes permissions et mêmes filtres (q, statut, evenement) que la liste.
+    Encodage utf-8-sig et séparateur « ; » pour qu'Excel (en français) l'ouvre directement."""
+    paginate_by = None
+    COLONNES = ("Nom", "E-mail", "Type de billet", "Quantité", "Montant (DT)", "Statut", "Date d'inscription",
+                "Présent", "Code")
+
+    @staticmethod
+    def cellule(valeur):
+        """Neutralise les formules (=, +, -, @) qu'un tableur exécuterait à l'ouverture."""
+        texte = str(valeur)
+        return f"'{texte}" if texte[:1] in ("=", "+", "-", "@", "\t", "\r") else texte
+
+    def render_to_response(self, context, **kwargs):
+        reponse = HttpResponse(content_type="text/csv; charset=utf-8")
+        reponse["Content-Disposition"] = f'attachment; filename="inscriptions-{timezone.localdate():%Y%m%d}.csv"'
+        # utf-8-sig = UTF-8 précédé d'une seule marque BOM. (Avec charset=utf-8-sig, HttpResponse encoderait chaque
+        # écriture à part et répéterait la BOM au début de chaque ligne.)
+        reponse.write("﻿")
+        ecrivain = csv.writer(reponse, delimiter=";")
+        ecrivain.writerow(self.COLONNES)
+        for i in context["object_list"]:
+            p = i.participant
+            ecrivain.writerow([self.cellule(v) for v in (
+                p.get_full_name() or p.username, p.email,
+                i.type_billet.nom if i.type_billet else "Entrée", i.quantite,
+                f"{i.montant:.2f}".replace(".", ","), i.get_statut_display(),
+                timezone.localtime(i.date_inscription).strftime("%d/%m/%Y %H:%M"),
+                "Oui" if i.present else "Non", i.code_court)])
+        return reponse
+
+
+class TableauBordView(ProprietaireEvenementMixin, TemplateView):
+    """Tableau de bord d'un événement (mêmes accès que la liste de ses inscrits) : indicateurs + 3 graphiques.
+    Tous les chiffres sont calculés ici par agrégations ORM, puis passés au gabarit avec json_script."""
+    template_name = "participants/evenement_tableau.html"
+
+    def get_evenement(self):
+        if not hasattr(self, "_evenement"):
+            self._evenement = get_object_or_404(Evenement.objects.select_related("lieu"), pk=self.kwargs["evenement_pk"])
+        return self._evenement
+
+    def get_context_data(self, **kwargs):
+        e = self.get_evenement()
+        S = Inscription.Statut
+        qs = e.inscriptions.all()
+        conf = qs.filter(statut=S.CONFIRMEE)
+        par_statut = dict(qs.values_list("statut").annotate(n=Count("pk")))
+        c = conf.aggregate(places=Coalesce(Sum("quantite"), 0), ca=Coalesce(Sum("montant"), Decimal("0")),
+                           n=Count("pk"), presents=Count("pk", filter=Q(present=True)))
+        note = Avis.objects.filter(inscription__evenement=e).aggregate(m=Avg("note"), n=Count("pk"))
+        indicateurs = {
+            "confirmes": par_statut.get(S.CONFIRMEE, 0), "places_confirmees": c["places"],
+            "attente": par_statut.get(S.ATTENTE, 0), "annules": par_statut.get(S.ANNULEE, 0),
+            "taux_remplissage": round(c["places"] * 100 / e.capacite) if e.capacite else 0,
+            "chiffre_affaires": c["ca"],
+            "taux_presence": round(c["presents"] * 100 / c["n"]) if c["n"] else 0, "presents": c["presents"],
+            "note_moyenne": round(note["m"], 1) if note["m"] is not None else None, "nb_avis": note["n"],
+        }
+        ventes = (conf.values("type_billet__nom").annotate(places=Sum("quantite"), ca=Sum("montant"))
+                  .order_by("-places", "type_billet__nom"))
+        par_jour = (qs.annotate(jour=TruncDate("date_inscription")).values("jour")
+                    .annotate(n=Count("pk")).order_by("jour"))
+        graphiques = {
+            "statuts": {"labels": [lib for code, lib in S.choices], "valeurs": [par_statut.get(code, 0) for code, _ in S.choices]},
+            "ventes": {"labels": [v["type_billet__nom"] or "Entrée" for v in ventes],
+                       "places": [v["places"] for v in ventes], "ca": [float(v["ca"]) for v in ventes]},
+            "jours": {"labels": [f"{j['jour']:%d/%m}" for j in par_jour], "valeurs": [j["n"] for j in par_jour]},
+        }
+        return super().get_context_data(evenement=e, indicateurs=indicateurs, graphiques=graphiques,
+                                        vide=not qs.exists(), **kwargs)
+
+
 class InscriptionDetailView(ModuleRequiredMixin, DetailView):
     """Détail d'une inscription pour l'organisateur de l'événement (ou l'admin)."""
     module = "participants"
@@ -238,23 +366,43 @@ class CheckinView(ProprietaireEvenementMixin, FormView):
         e = self.get_evenement()
         return super().get_context_data(evenement=e, presents=e.inscriptions.filter(present=True).count(), **kwargs)
 
-    def form_valid(self, form):
-        e = self.get_evenement()
-        code = form.cleaned_data["code"]          # déjà normalisé : 8 à 32 caractères hexadécimaux
+    def veut_json(self):
+        """Le scan par caméra (fetch) demande une réponse JSON ; le formulaire classique garde la redirection."""
+        return "application/json" in self.request.headers.get("Accept", "")
+
+    def controler(self, e, code):
+        """Valide un billet. Retourne (résultat, niveau, message) ; résultat ∈ valide, deja_present, inconnu,
+        non_confirme, ambigu."""
         trouves = list(e.inscriptions.filter(statut=Inscription.Statut.CONFIRMEE, code_billet__startswith=code)
                        .select_related("participant")[:2])
+        if len(trouves) > 1:
+            return "ambigu", "error", "Plusieurs billets correspondent à ce début de code : saisissez le code complet."
         if not trouves:
-            messages.error(self.request, "Billet introuvable ou non confirmé pour cet événement.")
-        elif len(trouves) > 1:
-            messages.error(self.request, "Plusieurs billets correspondent à ce début de code : saisissez le code complet.")
-        else:
-            insc = trouves[0]
-            # Mise à jour conditionnelle : un même billet ne peut pas être validé deux fois, même en simultané.
-            if Inscription.objects.filter(pk=insc.pk, present=False).update(present=True):
-                messages.success(self.request, f"Bienvenue {insc.participant} ! Entrée enregistrée.")
-            else:
-                messages.warning(self.request, f"{insc.participant} est déjà entré.")
+            autre = e.inscriptions.filter(code_billet__startswith=code).first()
+            if autre:
+                return ("non_confirme", "error",
+                        f"Billet non confirmé ({autre.get_statut_display().lower()}) : entrée refusée.")
+            return "inconnu", "error", "Billet introuvable pour cet événement."
+        insc = trouves[0]
+        # Mise à jour conditionnelle : un même billet ne peut pas être validé deux fois, même en simultané.
+        if Inscription.objects.filter(pk=insc.pk, present=False).update(present=True):
+            return "valide", "success", f"Bienvenue {insc.participant} ! Entrée enregistrée."
+        return "deja_present", "warning", f"{insc.participant} est déjà entré."
+
+    def form_valid(self, form):
+        e = self.get_evenement()
+        resultat, niveau, message = self.controler(e, form.cleaned_data["code"])   # code déjà normalisé
+        if self.veut_json():
+            return JsonResponse({"resultat": resultat, "niveau": niveau, "message": message,
+                                 "presents": e.inscriptions.filter(present=True).count()})
+        getattr(messages, niveau)(self.request, message)
         return redirect("participants:checkin", evenement_pk=e.pk)
+
+    def form_invalid(self, form):
+        if self.veut_json():
+            return JsonResponse({"resultat": "invalide", "niveau": "error",
+                                 "message": " ".join(form.errors.get("code", ["Code invalide."]))}, status=400)
+        return super().form_invalid(form)
 
 
 class AvisCreateView(LoginRequiredMixin, CreateView):

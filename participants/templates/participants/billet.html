@@ -21,6 +21,7 @@
   <div class="actions center-actions no-print">
     <button class="btn primary" type="button" id="dl">Télécharger le billet (PNG)</button>
     <button class="btn ghost" type="button" onclick="window.print()">Imprimer</button>
+    {% if object.participant == user and object.statut != "ANNULEE" %}<a class="btn ghost" href="{% url 'participants:billet_ics' object.code_billet %}" download>Ajouter au calendrier</a>{% endif %}
     <a class="btn ghost" href="{% url 'participants:mes_inscriptions' %}">Mes billets</a>
   </div>
   <p class="muted center no-print">Présentez ce QR code (ou le code {{ object.code_court }}) à l'entrée.</p>

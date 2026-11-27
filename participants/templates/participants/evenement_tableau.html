@@ -1,0 +1,68 @@
+{% extends "app_base.html" %}{% block title %}Tableau de bord · {{ evenement.titre }}{% endblock %}
+{% block banner %}
+<section class="page-banner">
+  <div><span class="eyebrow">Tableau de bord · {{ evenement.date_debut|date:"d/m/Y H:i" }} · {{ evenement.lieu.nom }}</span><h1>{{ evenement.titre }}</h1></div>
+  <div class="actions">
+    <a class="btn primary" href="{% url 'participants:liste' evenement.pk %}">Inscrits</a>
+    <a class="btn ghost" href="{% url 'participants:inscription_export' %}?evenement={{ evenement.pk }}">Exporter CSV</a>
+    <a class="btn ghost" href="{% url 'participants:checkin' evenement.pk %}">Check-in</a>
+  </div>
+</section>
+{% endblock %}
+{% block content %}
+{% with k=indicateurs %}
+<section class="kpi-grid" aria-label="Indicateurs">
+  <div class="kpi"><b>{{ k.confirmes }}</b><span>réservation{{ k.confirmes|pluralize }} confirmée{{ k.confirmes|pluralize }} ({{ k.places_confirmees }} place{{ k.places_confirmees|pluralize }})</span></div>
+  <div class="kpi"><b>{{ k.attente }}</b><span>en liste d'attente</span></div>
+  <div class="kpi"><b>{{ k.annules }}</b><span>annulée{{ k.annules|pluralize }}</span></div>
+  <div class="kpi"><b>{{ k.taux_remplissage }} %</b><span>de remplissage ({{ k.places_confirmees }} / {{ evenement.capacite }})</span></div>
+  <div class="kpi"><b>{{ k.chiffre_affaires|floatformat:"2g" }}</b><span>DT de chiffre d'affaires (réservations confirmées)</span></div>
+  <div class="kpi"><b>{{ k.taux_presence }} %</b><span>de présence ({{ k.presents }} entrée{{ k.presents|pluralize }})</span></div>
+  <div class="kpi"><b>{% if k.note_moyenne is not None %}{{ k.note_moyenne }} / 5{% else %}—{% endif %}</b><span>note moyenne ({{ k.nb_avis }} avis)</span></div>
+</section>
+{% endwith %}
+
+{% if vide %}
+  {% include "partials/empty_state.html" with icone="participants" titre="Aucune inscription pour l'instant" texte="Les graphiques apparaîtront dès les premières réservations." %}
+{% else %}
+<div class="dash-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px">
+  <section class="panel"><div class="panel-head"><h2>Répartition par statut</h2></div><div style="position:relative;height:260px"><canvas id="g-statuts" role="img" aria-label="Répartition des réservations par statut"></canvas></div></section>
+  <section class="panel"><div class="panel-head"><h2>Ventes par type de billet</h2></div><div style="position:relative;height:260px"><canvas id="g-ventes" role="img" aria-label="Places vendues et chiffre d'affaires par type de billet"></canvas></div></section>
+  <section class="panel" style="grid-column:1/-1"><div class="panel-head"><h2>Inscriptions par jour</h2></div><div style="position:relative;height:260px"><canvas id="g-jours" role="img" aria-label="Nombre d'inscriptions par jour"></canvas></div></section>
+</div>
+{{ graphiques|json_script:"donnees-graphiques" }}
+{% endif %}
+{% endblock %}
+{% block extra_js %}{% if not vide %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"
+        integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
+<script>
+(() => {
+  if (!window.Chart) return;
+  const D = JSON.parse(document.getElementById("donnees-graphiques").textContent);
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const C = { primaire: css("--color-primary"), accent: css("--color-accent"), ok: css("--ok"), warn: css("--warn"),
+              err: css("--err"), texte: css("--color-text-muted") };
+  Chart.defaults.color = C.texte; Chart.defaults.font.family = css("--font-body") || "sans-serif";
+  const anim = matchMedia("(prefers-reduced-motion: reduce)").matches ? false : {};
+
+  new Chart(document.getElementById("g-statuts"), { type: "doughnut",
+    data: { labels: D.statuts.labels, datasets: [{ data: D.statuts.valeurs, backgroundColor: [C.ok, C.warn, C.err] }] },
+    options: { animation: anim, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } } });
+
+  new Chart(document.getElementById("g-ventes"), { type: "bar",
+    data: { labels: D.ventes.labels, datasets: [
+      { label: "Places vendues", data: D.ventes.places, backgroundColor: C.primaire, yAxisID: "y" },
+      { label: "Chiffre d'affaires (DT)", data: D.ventes.ca, backgroundColor: C.accent, yAxisID: "y1" } ] },
+    options: { animation: anim, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: "Places" } },
+                y1: { beginAtZero: true, position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "DT" } } } } });
+
+  new Chart(document.getElementById("g-jours"), { type: "line",
+    data: { labels: D.jours.labels, datasets: [{ label: "Inscriptions", data: D.jours.valeurs, borderColor: C.primaire,
+      backgroundColor: C.accent, tension: .25, fill: false, pointRadius: 4 }] },
+    options: { animation: anim, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
+})();
+</script>
+{% endif %}{% endblock %}

@@ -27,4 +27,8 @@ urlpatterns = [
     path("avis/<int:pk>/modifier/", views.AvisUpdateView.as_view(), name="avis_modifier"),
     path("avis/<int:pk>/supprimer/", views.AvisDeleteView.as_view(), name="avis_supprimer"),
     path("billet/<uuid:code_billet>/", views.BilletView.as_view(), name="billet"),
+    path("billet/<uuid:code_billet>/calendrier.ics", views.BilletIcsView.as_view(), name="billet_ics"),
+    path("inscription/<int:pk>/transferer/", views.TransfertInscriptionView.as_view(), name="inscription_transferer"),
+    path("inscriptions/export.csv", views.InscriptionExportCsvView.as_view(), name="inscription_export"),
+    path("evenement/<int:evenement_pk>/tableau-de-bord/", views.TableauBordView.as_view(), name="tableau_de_bord"),
 ]

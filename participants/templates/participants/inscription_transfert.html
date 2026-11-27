@@ -1,0 +1,27 @@
+{% extends "app_base.html" %}{% block title %}Transférer mon billet{% endblock %}
+{% block banner %}<section class="page-banner"><div class="container"><span class="eyebrow">{{ evenement.titre }} · {{ evenement.date_debut|date:"d/m/Y H:i" }}</span><h1>Transférer mon billet</h1></div></section>{% endblock %}
+{% block content %}
+<section class="card narrow form-card">
+  <p class="muted small">Billet : <b>{% if inscription.type_billet %}{{ inscription.type_billet.nom }}{% else %}Entrée{% endif %} × {{ inscription.quantite }}</b>
+    · {% if inscription.montant %}{{ inscription.montant|floatformat:2 }} DT{% else %}Gratuit{% endif %} · code <code>{{ inscription.code_court }}</code></p>
+  <form method="post" class="form">{% csrf_token %}
+    {% if confirmation %}
+      <div class="msg warning"><span>Vous allez donner cette réservation à <b>{{ destinataire }}</b>{% if destinataire.email %} ({{ destinataire.email }}){% endif %}.
+        Un nouveau code de billet sera créé : <b>votre QR code actuel ne fonctionnera plus</b>. Cette action est définitive.</span></div>
+      {% if form.non_field_errors %}<div class="msg error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+      <input type="hidden" name="destinataire" value="{{ form.destinataire.value }}">
+      <input type="hidden" name="etape" value="confirmer">
+      <div class="actions">
+        <button class="btn primary" type="submit">Confirmer le transfert</button>
+        <a class="btn ghost" href="{% url 'participants:inscription_transferer' inscription.pk %}">Changer de destinataire</a>
+      </div>
+    {% else %}
+      {% include "partials/form_fields.html" %}
+      <div class="actions">
+        <button class="btn primary" type="submit">Continuer</button>
+        <a class="btn ghost" href="{% url 'participants:mes_inscriptions' %}">Annuler</a>
+      </div>
+    {% endif %}
+  </form>
+</section>
+{% endblock %}
