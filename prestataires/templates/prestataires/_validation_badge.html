@@ -1,0 +1,4 @@
+{% comment %} Badge de validation d'un prestataire non approuvé (rien pour un prestataire approuvé).
+   Variables : p (Prestataire), motif (True pour afficher aussi le motif d'un refus). {% endcomment %}
+{% if not p.est_approuve %}<span class="pr-badge {{ p.statut_validation|lower }}">{% if p.est_en_attente %}En attente de validation{% else %}Refusé{% endif %}</span>
+{% if motif and p.est_refuse and p.motif_refus %}<p class="pr-motif"><b>Motif du refus :</b> {{ p.motif_refus }}</p>{% endif %}{% endif %}

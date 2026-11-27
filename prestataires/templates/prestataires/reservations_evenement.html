@@ -4,7 +4,7 @@
 <header class="pr-head">
   <div><span class="pr-eyebrow">Réservations de prestataires</span><h1>{{ evenement.titre }}</h1><p>{{ evenement.date_debut|date:"d/m/Y H:i" }} · {{ evenement.lieu }}</p></div>
   <div class="pr-actions">
-    <a class="btn primary" href="{% url 'prestataires:reserver' evenement.pk %}?next={{ request.path|urlencode }}">+ Réserver</a>
+    {% if not user.est_admin %}<a class="btn primary" href="{% url 'prestataires:reserver' evenement.pk %}?next={{ request.path|urlencode }}">+ Réserver</a>{% endif %}
     <a class="btn ghost" href="{{ evenement.get_absolute_url }}">← Événement</a>
   </div>
 </header>

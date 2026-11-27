@@ -404,3 +404,20 @@
   .pr-card,.pr-card:hover,.pr-svc-photo:hover img,.pr-card-photo:hover .pr-cover-img img{transform:none}
   .pr-page .reveal{opacity:1;transform:none}
 }
+
+/* ---- Validation des prestataires par l'administrateur ---- */
+.pr-badge.en_attente{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+.pr-badge.refuse{background:var(--err-bg);color:var(--err);border-color:var(--err)}
+.pr-card-body > .pr-badge{align-self:flex-start}
+.pr-motif{margin:6px 0 0;padding:8px 12px;border-left:3px solid var(--err);border-radius:var(--radius-sm,8px);
+  background:var(--err-bg);color:var(--color-text);font-size:13px;line-height:1.45}
+.pr-alerte-validation{margin:0 0 20px;max-width:none}
+.pr-alerte-validation h2{font-size:inherit;margin:0 0 8px}
+.pr-validation{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;margin-top:12px}
+.pr-refus{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;flex:1 1 220px}
+.pr-refus textarea{flex:1 1 180px;min-height:38px;padding:8px 10px;border:1px solid var(--color-border);
+  border-radius:var(--radius-sm,8px);font:inherit;font-size:13px;background:var(--color-surface);color:var(--color-text);resize:vertical}
+.pr-compteur{display:inline-flex;margin-left:8px;padding:2px 8px;border-radius:var(--radius-pill);
+  background:var(--warn-bg);color:var(--warn);font-size:12px;font-weight:700}
+.pr-btn-attente{background:var(--color-surface)}
+.pr-refuses{margin-top:24px}

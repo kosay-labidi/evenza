@@ -1,0 +1,43 @@
+{% extends "prestataires/base_prestataires.html" %}{% block title %}Prestataires à valider{% endblock %}
+{% block ariane %}<li><a href="{% url 'prestataires:liste' %}">Prestataires</a></li><li><span aria-current="page">À valider</span></li>{% endblock %}
+{% block page %}
+<header class="pr-head"><div class="pr-head-main"><div><span class="pr-eyebrow">Administration</span><h1 data-split>Prestataires à valider</h1>
+  <p>{{ prestataires|length }} prestataire{{ prestataires|length|pluralize }} en attente. Approuvez-les pour les rendre réservables, ou refusez-les avec un motif.</p></div></div>
+  <div class="pr-actions"><a class="btn ghost" href="{% url 'prestataires:liste' %}">← Retour au catalogue</a></div></header>
+
+{% if prestataires %}
+<ul class="pr-grid">{% for p in prestataires %}
+  <li class="reveal" style="--i:{{ forloop.counter0 }}"><article class="pr-card pr-card-photo">
+    <div class="pr-cover">
+      <span class="pr-cover-img"><img src="{{ p.couverture_url }}" alt="" width="1200" height="800" loading="lazy" decoding="async"></span>
+      {% if p.service_principal %}<span class="pr-chip">{{ p.service_principal.get_type_display }}</span>{% endif %}
+      {% include "prestataires/_avatar.html" with p=p %}
+    </div>
+    <div class="pr-card-body">
+      <h2><a href="{{ p.get_absolute_url }}">{{ p.nom }}</a></h2>
+      {% include "prestataires/_validation_badge.html" with p=p %}
+      <p class="pr-card-meta">{{ p.email|default:"E-mail non renseigné" }}{% if p.telephone %} · {{ p.telephone }}{% endif %}</p>
+      <ul class="pr-tags" aria-label="Services">{% for s in p.services.all %}<li class="pr-tag">{{ s.get_type_display }}</li>{% endfor %}</ul>
+      <p class="pr-card-compte">Proposé par <b>{{ p.cree_par|default:"—" }}</b></p>
+      {% include "prestataires/_validation_actions.html" with p=p %}
+    </div>
+  </article></li>{% endfor %}
+</ul>
+{% else %}
+<div class="pr-vide-bloc">
+  {% include "prestataires/_illustration_vide.html" %}
+  <h2>Aucun prestataire en attente</h2><p>Toutes les propositions des organisateurs ont été traitées.</p>
+  <a class="btn primary sm" href="{% url 'prestataires:liste' %}">Retour au catalogue</a>
+</div>
+{% endif %}
+
+{% if refuses_recents %}
+<section class="pr-panel pr-refuses" aria-labelledby="pr-refuses"><h2 id="pr-refuses">Derniers refus</h2>
+  <div class="pr-table-wrap" role="region" aria-labelledby="pr-refuses" tabindex="0">
+    <table class="pr-table"><thead><tr><th scope="col">Prestataire</th><th scope="col">Date</th><th scope="col">Motif</th></tr></thead><tbody>
+    {% for p in refuses_recents %}<tr><td><a href="{{ p.get_absolute_url }}">{{ p.nom }}</a></td><td class="num">{{ p.date_validation|date:"d/m/Y" }}</td><td>{{ p.motif_refus }}</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

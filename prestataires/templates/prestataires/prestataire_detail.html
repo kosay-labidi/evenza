@@ -7,12 +7,24 @@
   <div class="pr-head-main">{% include "prestataires/_avatar.html" with p=object taille="lg" %}
     <div><span class="pr-eyebrow">{% for s in object.services.all %}{{ s.get_type_display }}{% if not forloop.last %} · {% endif %}{% empty %}Prestataire{% endfor %}</span><h1 data-split>{{ object.nom }}</h1></div></div>
   <div class="pr-actions">
-    <a class="btn primary" href="{% url 'prestataires:reserver_prestataire' object.pk %}">Réserver</a>
+    {% if object.est_approuve and not user.est_admin %}<a class="btn primary" href="{% url 'prestataires:reserver_prestataire' object.pk %}">Réserver</a>{% endif %}
     {% if user.est_admin %}<a class="btn ghost" href="{% url 'prestataires:modifier' object.pk %}">Modifier</a>
     <a class="btn ghost danger-text" href="{% url 'prestataires:supprimer' object.pk %}">Supprimer</a>{% endif %}
   </div>
 </header>
 
+{% if not object.est_approuve %}
+<section class="pr-alerte{% if object.est_refuse %} danger{% endif %} pr-alerte-validation" aria-labelledby="pr-validation-titre">
+  <span class="pr-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+  <div>
+    <h2 id="pr-validation-titre">{% include "prestataires/_validation_badge.html" with p=object %}</h2>
+    {% if object.est_en_attente %}<p>Ce prestataire a été envoyé à l'administrateur pour validation{% if object.cree_par %} par {{ object.cree_par }}{% endif %}. Il ne peut pas être réservé tant qu'il n'est pas approuvé.</p>
+    {% else %}<p>L'administrateur a refusé ce prestataire{% if object.date_validation %} le {{ object.date_validation|date:"d/m/Y" }}{% endif %} : il ne peut pas être réservé.</p>
+      {% if object.motif_refus %}<p class="pr-motif"><b>Motif du refus :</b> {{ object.motif_refus }}</p>{% endif %}{% endif %}
+    {% include "prestataires/_validation_actions.html" with p=object next=request.get_full_path %}
+  </div>
+</section>
+{% endif %}
 <div class="pr-cols">
   <aside class="pr-aside">
     <section class="pr-panel" aria-labelledby="pr-coord"><h2 id="pr-coord">Coordonnées</h2>

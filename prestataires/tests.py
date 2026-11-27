@@ -47,7 +47,7 @@ class BaseTests(TestCase):
 # ---------- US 4.1 — Créer ----------
 class CreerPrestataireTests(BaseTests):
     def donnees(self, **kw):
-        d = {"nom": "Nouveau", "telephone": "123", "email": "nouveau@ex.tn", "services": [self.traiteur.pk, self.son.pk]}
+        d = {"nom": "Nouveau", "telephone": "71 234 567", "email": "nouveau@ex.tn", "services": [self.traiteur.pk, self.son.pk]}
         d.update(kw)
         return d
 
@@ -56,7 +56,7 @@ class CreerPrestataireTests(BaseTests):
         r = self.client.post(reverse("prestataires:creer"), self.donnees(), follow=True)
         p = Prestataire.objects.get(nom="Nouveau")
         self.assertEqual(set(p.services.all()), {self.traiteur, self.son})
-        self.assertContains(r, "a été ajouté")
+        self.assertContains(r, "envoyé à l&#x27;administrateur pour validation")
 
     def test_email_obligatoire_et_valide(self):
         self.assertFalse(PrestataireForm(data=self.donnees(email="")).is_valid())
@@ -323,8 +323,8 @@ class ServicesTests(BaseTests):
     def test_admin_selection_multiple_des_services(self):
         self.login(self.admin)
         r = self.client.post(reverse("admin:prestataires_prestataire_add"),
-                             {"nom": "Multi", "email": "multi@ex.tn", "telephone": "",
-                              "services": [self.traiteur.pk, self.son.pk]})
+                             {"nom": "Multi", "email": "multi@ex.tn", "telephone": "55 444 333",
+                              "services": [self.traiteur.pk, self.son.pk], "statut_validation": "APPROUVE"})
         self.assertEqual(r.status_code, 302)
         self.assertEqual(Prestataire.objects.get(nom="Multi").services.count(), 2)
         r = self.client.get(reverse("admin:prestataires_prestataire_add"))
@@ -336,7 +336,7 @@ class ModifierSupprimerTests(BaseTests):
     def test_admin_modifie_cote_site(self):
         self.login(self.admin)
         r = self.client.post(reverse("prestataires:modifier", args=[self.p.pk]),
-                             {"nom": "P modifié", "telephone": "9", "email": "p@ex.tn", "services": [self.son.pk]},
+                             {"nom": "P modifié", "telephone": "29 000 111", "email": "p@ex.tn", "services": [self.son.pk]},
                              follow=True)
         self.p.refresh_from_db()
         self.assertEqual(self.p.nom, "P modifié")
@@ -523,3 +523,322 @@ class ImagesEtPagesTests(BaseTests):
         self.assertContains(r, 'class="pr-badge confirmee">Confirmée')
         self.assertContains(r, reverse("prestataires:reservations_evenement", args=[self.evt.pk]))
         self.assertNotContains(r, "Oui, supprimer")
+
+
+# ---------- Validation des prestataires par l'administrateur ----------
+class ValidationPrestatairesTests(BaseTests):
+    def creer(self, user, nom="Proposé", email="propose@ex.tn"):
+        self.login(user)
+        return self.client.post(reverse("prestataires:creer"),
+                                {"nom": nom, "telephone": "40 111 222", "email": email, "services": [self.traiteur.pk]},
+                                follow=True)
+
+    def en_attente(self, nom="Attente", par=None):
+        p = Prestataire.objects.create(nom=nom, email=f"{nom.lower()}@ex.tn", cree_par=par or self.org,
+                                       statut_validation=Prestataire.Validation.EN_ATTENTE)
+        p.services.add(self.traiteur)
+        return p
+
+    # -- création
+    def test_creation_organisateur_en_attente(self):
+        r = self.creer(self.org)
+        p = Prestataire.objects.get(nom="Proposé")
+        self.assertEqual(p.statut_validation, Prestataire.Validation.EN_ATTENTE)
+        self.assertEqual(p.cree_par, self.org)
+        self.assertIsNone(p.valide_par)
+        self.assertContains(r, "envoyé à l&#x27;administrateur pour validation")
+        self.assertContains(r, "En attente de validation")
+
+    def test_creation_admin_approuve_directement(self):
+        r = self.creer(self.admin)
+        p = Prestataire.objects.get(nom="Proposé")
+        self.assertEqual(p.statut_validation, Prestataire.Validation.APPROUVE)
+        self.assertEqual((p.cree_par, p.valide_par), (self.admin, self.admin))
+        self.assertIsNotNone(p.date_validation)
+        self.assertContains(r, "a été ajouté")
+
+    def test_creation_dans_l_admin_django_approuve(self):
+        self.login(self.admin)
+        self.client.post(reverse("admin:prestataires_prestataire_add"),
+                         {"nom": "Via admin", "email": "via@ex.tn", "telephone": "41 111 222",
+                          "services": [self.son.pk], "statut_validation": "APPROUVE"})
+        p = Prestataire.objects.get(nom="Via admin")
+        self.assertEqual((p.statut_validation, p.cree_par, p.valide_par), ("APPROUVE", self.admin, self.admin))
+
+    # -- seul l'admin valide
+    def test_seul_l_admin_valide(self):
+        p = self.en_attente()
+        for u in (self.org, self.autre_org, self.participant):
+            self.login(u)
+            self.assertEqual(self.client.get(reverse("prestataires:a_valider")).status_code, 403)
+            self.assertEqual(self.client.post(reverse("prestataires:approuver", args=[p.pk])).status_code, 403)
+            self.assertEqual(self.client.post(reverse("prestataires:refuser", args=[p.pk]),
+                                              {"motif": "Non"}).status_code, 403)
+        p.refresh_from_db()
+        self.assertTrue(p.est_en_attente)
+
+    def test_admin_approuve(self):
+        p = self.en_attente()
+        self.login(self.admin)
+        self.assertContains(self.client.get(reverse("prestataires:a_valider")), p.nom)
+        fiche = self.client.get(p.get_absolute_url())
+        self.assertContains(fiche, reverse("prestataires:approuver", args=[p.pk]))
+        self.assertContains(fiche, reverse("prestataires:refuser", args=[p.pk]))
+        self.client.post(reverse("prestataires:approuver", args=[p.pk]))
+        p.refresh_from_db()
+        self.assertEqual((p.statut_validation, p.valide_par), ("APPROUVE", self.admin))
+        self.assertIsNotNone(p.date_validation)
+
+    def test_refus_exige_un_motif(self):
+        p = self.en_attente()
+        self.login(self.admin)
+        r = self.client.post(reverse("prestataires:refuser", args=[p.pk]), {"motif": "   "}, follow=True)
+        p.refresh_from_db()
+        self.assertTrue(p.est_en_attente)
+        self.assertContains(r, "le motif est obligatoire")
+        self.client.post(reverse("prestataires:refuser", args=[p.pk]), {"motif": "Coordonnées invérifiables"})
+        p.refresh_from_db()
+        self.assertEqual((p.statut_validation, p.motif_refus), ("REFUSE", "Coordonnées invérifiables"))
+
+    def test_validation_uniquement_en_post(self):
+        p = self.en_attente()
+        self.login(self.admin)
+        self.assertEqual(self.client.get(reverse("prestataires:approuver", args=[p.pk])).status_code, 405)
+
+    def test_compteur_en_attente_pour_l_admin(self):
+        self.en_attente("A1")
+        self.en_attente("A2")
+        self.login(self.admin)
+        r = self.client.get(reverse("prestataires:liste"))
+        self.assertEqual(r.context["nb_en_attente"], 2)
+        self.assertContains(r, "2 en attente")
+        self.assertContains(r, reverse("prestataires:a_valider"))
+        self.login(self.org)
+        self.assertNotContains(self.client.get(reverse("prestataires:liste")), reverse("prestataires:a_valider"))
+
+    # -- catalogue
+    def test_catalogue_uniquement_approuves_sauf_les_siens(self):
+        a = self.en_attente("Mien", par=self.org)
+        b = self.en_attente("Autre", par=self.autre_org)
+        b.refuser(self.admin, "Doublon")
+        self.login(self.org)
+        r = self.client.get(reverse("prestataires:liste"))
+        self.assertEqual([p.nom for p in r.context["object_list"]], ["Mien", "P"])
+        self.assertContains(r, 'class="pr-badge en_attente"')
+        self.assertNotContains(r, reverse("prestataires:reserver_prestataire", args=[a.pk]))
+        self.assertContains(r, reverse("prestataires:reserver_prestataire", args=[self.p.pk]))
+        self.assertEqual(r.context["stats"]["nb_prestataires"], 1)
+        # fiche d'un prestataire non approuvé proposé par un autre organisateur : introuvable
+        self.assertEqual(self.client.get(b.get_absolute_url()).status_code, 404)
+
+    def test_organisateur_voit_son_refus_et_le_motif(self):
+        a = self.en_attente("Mien", par=self.org)
+        a.refuser(self.admin, "Pas d'assurance professionnelle")
+        self.login(self.org)
+        for url in (reverse("prestataires:liste"), a.get_absolute_url()):
+            r = self.client.get(url)
+            self.assertContains(r, 'class="pr-badge refuse"')
+            self.assertContains(r, "Pas d&#x27;assurance professionnelle")
+            self.assertNotContains(r, reverse("prestataires:reserver_prestataire", args=[a.pk]))
+
+    # -- réservation
+    def test_prestataire_non_approuve_non_reservable(self):
+        attente = self.en_attente("Att")
+        refuse = self.en_attente("Ref")
+        refuse.refuser(self.admin, "Non")
+        self.login(self.org)
+        for p in (attente, refuse):
+            # règle du modèle (Reservation.clean)
+            with self.assertRaises(ValidationError) as ctx:
+                Reservation(evenement=self.evt, prestataire=p, service=self.traiteur, montant=10).full_clean()
+            self.assertIn("prestataire", ctx.exception.message_dict)
+            # via l'URL, même en forgeant l'identifiant
+            url_choix = reverse("prestataires:reserver_prestataire", args=[p.pk])
+            self.assertEqual(self.client.get(url_choix).status_code, 404)
+            r = self.client.post(reverse("prestataires:reserver", args=[self.evt.pk]) + f"?prestataire={p.pk}",
+                                 {"prestataire": p.pk, "service": self.traiteur.pk, "montant": "100"})
+            self.assertEqual(r.status_code, 200)
+            self.assertIn("prestataire", r.context["form"].errors)
+        self.assertFalse(Reservation.objects.exists())
+
+    def test_reservation_refusee_aussi_dans_l_admin_django(self):
+        """Le formulaire de l'admin Django applique Reservation.clean() (testé ici hors vue : l'ajout y est fermé)."""
+        from django.contrib.admin.sites import site
+        p = self.en_attente()
+        from django.test import RequestFactory
+        requete = RequestFactory().get("/")
+        requete.user = self.admin
+        Form = site._registry[Reservation].get_form(requete)
+        form = Form(data={"evenement": self.evt.pk, "prestataire": p.pk, "service": self.traiteur.pk,
+                          "montant": "50", "statut": "DEMANDEE"})
+        self.assertFalse(form.is_valid())
+        self.assertIn("prestataire", form.errors)
+
+    def test_prestataires_existants_toujours_reservables(self):
+        self.assertTrue(self.p.est_approuve)    # défaut du modèle = APPROUVE, comme la migration
+        self.login(self.org)
+        self.client.post(reverse("prestataires:reserver", args=[self.evt.pk]),
+                         {"prestataire": self.p.pk, "service": self.traiteur.pk, "montant": "80"})
+        self.assertEqual(Reservation.objects.get().prestataire, self.p)
+
+    def test_reservation_existante_reste_modifiable_apres_refus(self):
+        r = self.reserver()
+        self.p.refuser(self.admin, "Plus partenaire")
+        r.montant = 120
+        r.full_clean()           # pas d'erreur : le prestataire de la réservation n'a pas changé
+        self.login(self.org)
+        self.client.post(reverse("prestataires:reservation_statut", args=[r.pk, "ANNULEE"]))
+        r.refresh_from_db()
+        self.assertEqual(r.statut, "ANNULEE")
+
+    def test_migration_approuve_les_existants(self):
+        from importlib import import_module
+
+        from django.apps import apps as django_apps
+        Prestataire.objects.update(statut_validation="EN_ATTENTE")
+        import_module("prestataires.migrations.0006_validation_prestataires").approuver_existants(django_apps, None)
+        self.assertFalse(Prestataire.objects.exclude(statut_validation="APPROUVE").exists())
+
+    # -- admin Django
+    def test_admin_django_filtre_et_actions_groupees(self):
+        a, b = self.en_attente("A1"), self.en_attente("A2")
+        self.login(self.admin)
+        url = reverse("admin:prestataires_prestataire_changelist")
+        r = self.client.get(url, {"statut_validation__exact": "EN_ATTENTE"})
+        self.assertEqual(set(r.context["cl"].queryset), {a, b})
+        self.client.post(url, {"action": "approuver", "_selected_action": [a.pk]})
+        a.refresh_from_db()
+        self.assertTrue(a.est_approuve)
+        # Refuser : page intermédiaire, motif obligatoire
+        r = self.client.post(url, {"action": "refuser", "_selected_action": [b.pk]})
+        self.assertContains(r, "Motif du refus")
+        self.client.post(url, {"action": "refuser", "_selected_action": [b.pk], "confirmer_refus": "1", "motif": ""})
+        b.refresh_from_db()
+        self.assertTrue(b.est_en_attente)
+        self.client.post(url, {"action": "refuser", "_selected_action": [b.pk], "confirmer_refus": "1",
+                               "motif": "Incomplet"})
+        b.refresh_from_db()
+        self.assertEqual((b.statut_validation, b.motif_refus, b.valide_par), ("REFUSE", "Incomplet", self.admin))
+
+    def test_refus_sans_motif_refuse_par_le_modele(self):
+        p = self.en_attente()
+        p.statut_validation = Prestataire.Validation.REFUSE
+        with self.assertRaises(ValidationError):
+            p.full_clean()
+        with self.assertRaises(ValidationError):
+            p.refuser(self.admin, "  ")
+
+
+# ---------- L'administrateur ne réserve pas ----------
+class AdminNeReservePasTests(BaseTests):
+    def test_admin_recoit_403_sur_les_vues_de_reservation(self):
+        self.login(self.admin)
+        url_choix = reverse("prestataires:reserver_prestataire", args=[self.p.pk])
+        url_form = reverse("prestataires:reserver", args=[self.evt.pk])
+        self.assertEqual(self.client.get(url_choix).status_code, 403)
+        self.assertEqual(self.client.get(url_form).status_code, 403)
+        r = self.client.post(url_form, {"prestataire": self.p.pk, "service": self.traiteur.pk, "montant": "100"})
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(Reservation.objects.exists())
+        # ni dans l'admin Django (supervision seulement)
+        self.assertEqual(self.client.get(reverse("admin:prestataires_reservation_add")).status_code, 403)
+
+    def test_bouton_reserver_absent_pour_l_admin(self):
+        self.login(self.admin)
+        url_choix = reverse("prestataires:reserver_prestataire", args=[self.p.pk])
+        url_form = reverse("prestataires:reserver", args=[self.evt.pk])
+        self.assertNotContains(self.client.get(reverse("prestataires:liste")), url_choix)
+        self.assertNotContains(self.client.get(self.p.get_absolute_url()), url_choix)
+        page = self.client.get(reverse("prestataires:reservations_evenement", args=[self.evt.pk]))
+        self.assertEqual(page.status_code, 200)            # supervision conservée
+        self.assertNotContains(page, url_form)
+
+    def test_admin_garde_ses_autres_droits(self):
+        r = self.reserver()
+        self.login(self.admin)
+        for url in (reverse("prestataires:creer"), reverse("prestataires:modifier", args=[self.p.pk]),
+                    reverse("prestataires:supprimer", args=[self.p.pk]), reverse("prestataires:a_valider"),
+                    reverse("admin:prestataires_reservation_changelist"), self.p.get_absolute_url()):
+            self.assertEqual(self.client.get(url).status_code, 200, url)
+        self.assertContains(self.client.get(reverse("admin:prestataires_reservation_changelist")), r.evenement.titre)
+
+    def test_organisateur_peut_toujours_reserver(self):
+        self.login(self.org)
+        url_choix = reverse("prestataires:reserver_prestataire", args=[self.p.pk])
+        url_form = reverse("prestataires:reserver", args=[self.evt.pk])
+        self.assertContains(self.client.get(reverse("prestataires:liste")), url_choix)
+        self.assertContains(self.client.get(self.p.get_absolute_url()), url_choix)
+        self.assertContains(self.client.get(reverse("prestataires:reservations_evenement", args=[self.evt.pk])),
+                            url_form)
+        self.assertEqual(self.client.get(url_choix).status_code, 200)
+        self.client.post(url_form, {"prestataire": self.p.pk, "service": self.traiteur.pk, "montant": "100"})
+        self.assertEqual(Reservation.objects.get().evenement, self.evt)
+
+
+# ---------- Téléphone tunisien ----------
+class TelephoneTests(BaseTests):
+    def form(self, tel, instance=None, admin=False):
+        from .forms import PrestataireAdminForm
+        Form = PrestataireAdminForm if admin else PrestataireForm
+        data = {"nom": "T", "email": "t@ex.tn", "telephone": tel, "services": [self.traiteur.pk],
+                "statut_validation": "APPROUVE"}
+        return Form(data=data, instance=instance)
+
+    def test_numeros_valides_acceptes_et_normalises(self):
+        for saisie in ("22123456", "22 123 456", "22-123-456", "+216 22 123 456", "+21622123456",
+                       "00216 22 123 456", "0021622123456", " 22 123 456 "):
+            for admin in (False, True):
+                f = self.form(saisie, admin=admin)
+                self.assertTrue(f.is_valid(), (saisie, f.errors))
+                self.assertEqual(f.cleaned_data["telephone"], "22 123 456")
+        for premier in "234579":
+            self.assertTrue(self.form(f"{premier}1234567").is_valid(), premier)
+
+    def assertErreur(self, tel, message, **kw):
+        f = self.form(tel, **kw)
+        self.assertFalse(f.is_valid())
+        self.assertEqual(f.errors["telephone"], [message])
+
+    def test_trop_court_trop_long_lettres_vide(self):
+        for tel in ("2212345", "221234567", "22ab3456", "téléphone", "", "+216 2212345"):
+            self.assertErreur(tel, "Le numéro doit contenir 8 chiffres.")
+
+    def test_premier_chiffre_invalide(self):
+        for tel in ("12123456", "62123456", "82123456", "02123456"):
+            self.assertErreur(tel, "Ce numéro n'est pas un numéro tunisien valide.")
+
+    def test_doublon_refuse_quel_que_soit_le_format(self):
+        Prestataire.objects.create(nom="Ancien", email="ancien@ex.tn", telephone="22-123-456")  # ancienne saisie
+        for tel in ("22 123 456", "+216 22123456"):
+            self.assertErreur(tel, "Ce numéro est déjà utilisé par un autre prestataire.")
+            self.assertErreur(tel, "Ce numéro est déjà utilisé par un autre prestataire.", admin=True)
+
+    def test_modifier_en_gardant_son_numero(self):
+        self.p.telephone = "22 123 456"
+        self.p.save()
+        self.assertTrue(self.form("22123456", instance=self.p).is_valid())
+
+    def test_enregistre_au_format_unique_et_affiche_sur_la_carte(self):
+        self.login(self.admin)
+        self.client.post(reverse("prestataires:creer"), {"nom": "Format", "email": "format@ex.tn",
+                                                         "telephone": "+216-98-765-432",
+                                                         "services": [self.traiteur.pk]})
+        p = Prestataire.objects.get(nom="Format")
+        self.assertEqual(p.telephone, "98 765 432")
+        self.assertContains(self.client.get(reverse("prestataires:liste")), "98 765 432")
+        self.assertContains(self.client.get(reverse("prestataires:modifier", args=[p.pk])),
+                            '<p class="pr-card-meta" data-pr-apercu-tel>98 765 432</p>', html=False)
+
+    def test_attributs_html_du_champ(self):
+        self.login(self.org)
+        r = self.client.get(reverse("prestataires:creer"))
+        for attendu in ('type="tel"', 'inputmode="numeric"', 'maxlength="16"', 'pattern="',
+                        "8 chiffres, ex. 22 123 456", "data-pr-tel"):
+            self.assertContains(r, attendu)
+
+    def test_erreur_affichee_sous_le_champ(self):
+        self.login(self.org)
+        r = self.client.post(reverse("prestataires:creer"), {"nom": "X", "email": "x@ex.tn", "telephone": "12345678",
+                                                             "services": [self.traiteur.pk]})
+        self.assertContains(r, '<small class="pr-err" role="alert">Ce numéro n&#x27;est pas un numéro tunisien valide.')
+        self.assertFalse(Prestataire.objects.filter(nom="X").exists())

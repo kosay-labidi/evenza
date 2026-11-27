@@ -37,6 +37,58 @@
     anneaux.forEach(a => io.observe(a));
   }
 
+  /* ---------- F3 · téléphone tunisien : mise en forme « 22 123 456 » + message clair ----------
+     Mêmes règles que prestataires/telephone.py (le serveur vérifie toujours, ce script n'aide qu'à la saisie). */
+  const telChiffres = v => {
+    const b = (v || "").replace(/[\s.\-]/g, "");
+    for (const ind of ["+216", "00216"]) if (b.startsWith(ind)) return b.slice(ind.length);
+    return b;
+  };
+  const telFormat = n => [n.slice(0, 2), n.slice(2, 5), n.slice(5, 8)].filter(Boolean).join(" ");
+  const telErreur = v => {
+    const n = telChiffres(v);
+    if (!/^\d{8}$/.test(n)) return "Le numéro doit contenir 8 chiffres.";
+    if (!"234579".includes(n[0])) return "Ce numéro n'est pas un numéro tunisien valide.";
+    return "";
+  };
+  const telAffiche = v => (v.trim() && !telErreur(v) ? telFormat(telChiffres(v)) : v.trim());
+  document.querySelectorAll("[data-pr-tel]").forEach(champ => {
+    const bloc = champ.closest(".pr-field");
+    const afficher = texte => {
+      let msg = bloc && bloc.querySelector("[data-pr-tel-err]");
+      if (bloc) bloc.querySelectorAll(".pr-err:not([data-pr-tel-err])").forEach(e => e.remove());   // ancien message serveur
+      if (texte && bloc && !msg) {
+        msg = document.createElement("small"); msg.className = "pr-err"; msg.setAttribute("role", "alert");
+        msg.dataset.prTelErr = ""; bloc.appendChild(msg);
+      }
+      if (msg) { msg.textContent = texte; msg.hidden = !texte; }
+      if (bloc) bloc.classList.toggle("has-error", !!texte);
+      champ.setAttribute("aria-invalid", texte ? "true" : "false");
+    };
+    champ.addEventListener("input", () => {
+      const v = champ.value;
+      if (/^\s*(\+|0{2})/.test(v)) return;            // indicatif en cours de saisie : mis en forme à la sortie du champ
+      const pos = champ.selectionStart ?? v.length;
+      const avant = v.slice(0, pos).replace(/\D/g, "").length;   // chiffres avant le curseur
+      const f = telFormat(v.replace(/\D/g, "").slice(0, 8));
+      if (f !== v) {
+        champ.value = f;
+        let p = 0, vus = 0;
+        while (p < f.length && vus < avant) { if (/\d/.test(f[p])) vus++; p++; }
+        champ.setSelectionRange(p, p);
+      }
+      if (!telErreur(champ.value)) afficher("");
+    });
+    champ.addEventListener("blur", () => {
+      const v = champ.value.trim();
+      if (!v) return;
+      const err = telErreur(v);
+      if (!err) champ.value = telFormat(telChiffres(v));
+      afficher(err);
+      champ.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  });
+
   /* ---------- F2 · aperçu en direct ---------- */
   const form = document.querySelector("[data-pr-form]");
   const apercu = document.querySelector("[data-pr-apercu]");
@@ -51,7 +103,7 @@
       const n = nom.value.trim();
       $("[data-pr-apercu-nom]").textContent = n || "Nom du prestataire";
       ini.textContent = initiales(n);
-      $("[data-pr-apercu-tel]").textContent = tel.value.trim() || "Téléphone non renseigné";
+      $("[data-pr-apercu-tel]").textContent = (tel && telAffiche(tel.value)) || "Téléphone non renseigné";
     };
     const majServices = () => {
       const coches = [...form.querySelectorAll("[name=services]:checked")].map(i => i.closest("[data-type]"));

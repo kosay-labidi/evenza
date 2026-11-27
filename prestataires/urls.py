@@ -6,6 +6,9 @@ app_name = "prestataires"
 urlpatterns = [
     path("", views.PrestataireListView.as_view(), name="liste"),
     path("nouveau/", views.PrestataireCreateView.as_view(), name="creer"),
+    path("a-valider/", views.PrestatairesAValiderView.as_view(), name="a_valider"),
+    path("<int:pk>/approuver/", views.PrestataireValidationView.as_view(decision="approuver"), name="approuver"),
+    path("<int:pk>/refuser/", views.PrestataireValidationView.as_view(decision="refuser"), name="refuser"),
     path("<int:pk>/", views.PrestataireDetailView.as_view(), name="detail"),
     path("<int:pk>/modifier/", views.PrestataireUpdateView.as_view(), name="modifier"),
     path("<int:pk>/supprimer/", views.PrestataireDeleteView.as_view(), name="supprimer"),

@@ -1,0 +1,10 @@
+{% comment %} Boutons Approuver / Refuser d'un prestataire en attente (admin seulement ; la vue vérifie aussi).
+   Variables : p (Prestataire), next (URL de retour, optionnelle). Le motif est obligatoire pour refuser. {% endcomment %}
+{% if user.est_admin and p.est_en_attente %}<div class="pr-validation">
+  <form method="post" action="{% url 'prestataires:approuver' p.pk %}" class="inline">{% csrf_token %}{% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <button class="btn primary sm" type="submit" aria-label="Approuver {{ p.nom }}">Approuver</button></form>
+  <form method="post" action="{% url 'prestataires:refuser' p.pk %}" class="pr-refus">{% csrf_token %}{% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <label class="sr-only" for="motif-{{ p.pk }}">Motif du refus de {{ p.nom }}</label>
+    <textarea id="motif-{{ p.pk }}" name="motif" rows="2" maxlength="1000" required placeholder="Motif du refus (obligatoire)"></textarea>
+    <button class="btn ghost sm danger-text" type="submit" aria-label="Refuser {{ p.nom }}">Refuser</button></form>
+</div>{% endif %}

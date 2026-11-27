@@ -4,15 +4,16 @@ from django.core.exceptions import ValidationError
 from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
 from core.mixins import AdminRequiredMixin, OrganisateurRequiredMixin, ProprietaireEvenementMixin, SuppressionMixin
-from core.permissions import evenements_geres
+from core.permissions import est_administrateur, evenements_geres, peut_organiser
 from evenements.models import Evenement
 
-from .forms import PrestataireForm, ReservationForm
+from .forms import PrestataireForm, RefusPrestataireForm, ReservationForm
 from .models import Prestataire, Reservation, Service, image_prestataires
 
 
@@ -28,6 +29,27 @@ def _next_sur(request):
                                                require_https=request.is_secure()):
         return url
     return None
+
+
+def peut_reserver(user, evenement=None):
+    """Réserver un prestataire : seulement un organisateur (pas l'admin), et pour ses propres événements.
+
+    L'admin consulte, crée, modifie, supprime et valide les prestataires, et supervise les réservations
+    (US 4.7), mais ne réserve pas : il reçoit 403, même en tapant l'URL.
+    """
+    if not peut_organiser(user) or est_administrateur(user):
+        return False
+    return evenement is None or evenement.organisateur_id == user.id
+
+
+class ReservationOrganisateurMixin(OrganisateurRequiredMixin):
+    """Vues qui créent une réservation : organisateur propriétaire de l'événement uniquement (admin → 403)."""
+
+    def get_evenement(self):
+        return None
+
+    def test_func(self):
+        return super().test_func() and peut_reserver(self.request.user, self.get_evenement())
 
 
 # ---- Prestataires : liste, détail, ajout, modification, suppression ----
@@ -48,7 +70,8 @@ class PrestataireListView(OrganisateurRequiredMixin, ListView):
 
     def get_queryset(self):
         q, service = self.get_filtres()
-        qs = Prestataire.objects.all()
+        # Catalogue : les prestataires approuvés + ceux que l'utilisateur a proposés (badge en attente / refusé).
+        qs = Prestataire.objects.visibles_pour(self.request.user)
         if q:
             qs = qs.filter(Q(nom__icontains=q) | Q(email__icontains=q) | Q(telephone__icontains=q))
         if service:
@@ -63,21 +86,24 @@ class PrestataireListView(OrganisateurRequiredMixin, ListView):
         q, service = self.get_filtres()
         filtres = urlencode({k: v for k, v in (("q", q), ("service", service)) if v})
         stats = {
-            "nb_prestataires": Prestataire.objects.count(),
+            "nb_prestataires": Prestataire.objects.approuves().count(),
             "nb_types": Service.objects.values("type").distinct().count(),
             "nb_demandees": Reservation.objects.filter(statut=Reservation.Statut.DEMANDEE,
                                                        evenement__in=evenements_geres(self.request.user)).count(),
         }
+        nb_en_attente = Prestataire.objects.en_attente().count() if est_administrateur(self.request.user) else 0
         return super().get_context_data(q=q, service_actif=service, types_service=Service.Type.choices,
                                         filtres=filtres, stats=stats, bandeau_url=image_prestataires("bandeau"),
-                                        **kwargs)
+                                        nb_en_attente=nb_en_attente, **kwargs)
 
 
 class PrestataireDetailView(OrganisateurRequiredMixin, DetailView):
+    """Fiche : l'admin voit tout ; l'organisateur, les approuvés et ceux qu'il a proposés (sinon 404)."""
     model = Prestataire
 
     def get_queryset(self):
-        return Prestataire.objects.prefetch_related("services")
+        qs = Prestataire.objects.all() if est_administrateur(self.request.user) else             Prestataire.objects.visibles_pour(self.request.user)
+        return qs.prefetch_related("services")
 
     def get_context_data(self, **kwargs):
         # L'admin voit toutes les réservations du prestataire ; l'organisateur, celles de ses événements.
@@ -92,10 +118,13 @@ class PrestataireDetailView(OrganisateurRequiredMixin, DetailView):
                                         taux_confirmation=taux, **kwargs)
 
 
-class PrestataireReserverView(OrganisateurRequiredMixin, DetailView):
+class PrestataireReserverView(ReservationOrganisateurMixin, DetailView):
     """Bouton « Réserver » d'une carte : choisir l'événement, puis le formulaire est pré-rempli."""
     model = Prestataire
     template_name = "prestataires/prestataire_reserver.html"
+
+    def get_queryset(self):
+        return Prestataire.objects.approuves()   # non approuvé → 404, même en tapant l'URL
 
     def get_context_data(self, **kwargs):
         evts = evenements_geres(self.request.user).exclude(statut=Evenement.Statut.ANNULE).order_by("-date_debut")
@@ -110,9 +139,26 @@ class ApercuCarteMixin:
 
 
 class PrestataireCreateView(OrganisateurRequiredMixin, ApercuCarteMixin, SuccessMessageMixin, CreateView):
+    """Création par l'admin → APPROUVE directement ; par un organisateur → EN_ATTENTE de validation."""
     model = Prestataire
     form_class = PrestataireForm
     success_message = "Le prestataire « %(nom)s » a été ajouté."
+    message_en_attente = ("Le prestataire « %(nom)s » a été envoyé à l'administrateur pour validation. "
+                          "Il pourra être réservé dès qu'il sera approuvé.")
+
+    def form_valid(self, form):
+        p, user = form.instance, self.request.user
+        p.cree_par = user
+        if est_administrateur(user):
+            p.statut_validation = Prestataire.Validation.APPROUVE
+            p.valide_par, p.date_validation = user, timezone.now()
+        else:
+            p.statut_validation = Prestataire.Validation.EN_ATTENTE
+        return super().form_valid(form)
+
+    def get_success_message(self, cleaned_data):
+        modele = self.success_message if self.object.est_approuve else self.message_en_attente
+        return modele % cleaned_data
 
     def get_success_url(self):
         return self.object.get_absolute_url()
@@ -144,7 +190,7 @@ class PrestataireDeleteView(AdminRequiredMixin, SuppressionMixin, DeleteView):
 
 
 # ---- Réservations ----
-class ReservationCreateView(ProprietaireEvenementMixin, CreateView):
+class ReservationCreateView(ReservationOrganisateurMixin, CreateView):
     model = Reservation
     form_class = ReservationForm
 
@@ -214,3 +260,43 @@ class ReservationStatutView(ProprietaireEvenementMixin, View):
         else:
             messages.success(request, f"Réservation de « {r.prestataire} » : {r.get_statut_display().lower()}.")
         return redirect(_next_sur(request) or reverse("prestataires:reservations_evenement", args=[r.evenement_id]))
+
+
+# ---- Validation des prestataires par l'administrateur ----
+class PrestatairesAValiderView(AdminRequiredMixin, ListView):
+    """Page « Prestataires à valider » : les propositions des organisateurs, les plus anciennes d'abord."""
+    template_name = "prestataires/prestataires_a_valider.html"
+    context_object_name = "prestataires"
+
+    def get_queryset(self):
+        return (Prestataire.objects.en_attente().select_related("cree_par").prefetch_related("services")
+                .order_by("pk"))
+
+    def get_context_data(self, **kwargs):
+        refuses = (Prestataire.objects.filter(statut_validation=Prestataire.Validation.REFUSE)
+                   .select_related("valide_par").order_by("-date_validation")[:5])
+        return super().get_context_data(form_refus=RefusPrestataireForm(), refuses_recents=refuses, **kwargs)
+
+
+class PrestataireValidationView(AdminRequiredMixin, View):
+    """POST : approuver ou refuser un prestataire en attente (motif obligatoire pour refuser)."""
+    http_method_names = ["post"]
+    decision = None   # "approuver" ou "refuser"
+
+    def post(self, request, pk):
+        p = get_object_or_404(Prestataire, pk=pk)
+        retour = _next_sur(request) or reverse("prestataires:a_valider")
+        if not p.est_en_attente:
+            messages.error(request, f"« {p} » a déjà été traité ({p.get_statut_validation_display().lower()}).")
+            return redirect(retour)
+        if self.decision == "approuver":
+            p.approuver(request.user)
+            messages.success(request, f"« {p} » est approuvé : il apparaît maintenant dans le catalogue.")
+            return redirect(retour)
+        form = RefusPrestataireForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, f"Refus de « {p} » non enregistré : le motif est obligatoire.")
+            return redirect(retour)
+        p.refuser(request.user, form.cleaned_data["motif"])
+        messages.success(request, f"« {p} » est refusé. L'organisateur verra le motif sur sa fiche.")
+        return redirect(retour)

@@ -1,0 +1,18 @@
+{% extends "admin/base_site.html" %}{% load admin_urls %}
+{% comment %} Page intermédiaire de l'action groupée « Refuser » : le motif est obligatoire. {% endcomment %}
+{% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Accueil</a> ›
+  <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a> ›
+  <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a> › Refuser</div>{% endblock %}
+{% block content %}
+<p>Les prestataires suivants seront <strong>refusés</strong>. L'organisateur qui les a proposés verra le motif sur leur fiche.</p>
+<ul>{% for p in prestataires %}<li>{{ p.nom }}{% if p.cree_par %} — proposé par {{ p.cree_par }}{% endif %}</li>{% endfor %}</ul>
+<form method="post">{% csrf_token %}
+  {% for p in selection %}<input type="hidden" name="{{ action_checkbox_name }}" value="{{ p.pk }}">{% endfor %}
+  <input type="hidden" name="action" value="refuser">
+  <input type="hidden" name="confirmer_refus" value="1">
+  {{ form.motif.errors }}
+  <p><label for="{{ form.motif.id_for_label }}"><strong>{{ form.motif.label }}</strong> (obligatoire)</label><br>{{ form.motif }}</p>
+  <input type="submit" class="default" value="Confirmer le refus">
+  <a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">Annuler</a>
+</form>
+{% endblock %}

@@ -7,7 +7,7 @@
   <div class="pr-bandeau-in">
     <div><span class="pr-eyebrow">Partenaires</span><h1 data-split>Nos prestataires</h1>
       <p>Traiteurs, son, lumière, décoration, photo et sécurité : trouvez et réservez les bons partenaires pour vos événements.</p></div>
-    {% if user.est_organisateur %}<div class="pr-actions"><a class="btn pr-btn-or" href="{% url 'prestataires:creer' %}">+ Nouveau prestataire</a></div>{% endif %}
+    {% if user.est_organisateur %}<div class="pr-actions">{% if user.est_admin %}<a class="btn ghost pr-btn-attente" href="{% url 'prestataires:a_valider' %}">Prestataires à valider <span class="pr-compteur">{{ nb_en_attente }} en attente</span></a>{% endif %}<a class="btn pr-btn-or" href="{% url 'prestataires:creer' %}">+ Nouveau prestataire</a></div>{% endif %}
   </div>
 </header>
 
@@ -45,11 +45,12 @@
     </div>
     <div class="pr-card-body">
       <h2><a href="{{ p.get_absolute_url }}">{{ p.nom }}</a></h2>
+      {% include "prestataires/_validation_badge.html" with p=p motif=True %}
       <p class="pr-card-meta">{% if p.telephone %}<span class="sr-only">Téléphone : </span>{{ p.telephone }}{% else %}Téléphone non renseigné{% endif %}</p>
       <ul class="pr-tags" aria-label="Services">{% for s in p.services.all %}<li class="pr-tag">{{ s.get_type_display }}</li>{% endfor %}</ul>
       <p class="pr-card-compte"><b>{{ p.nb_reservations }}</b> réservation{{ p.nb_reservations|pluralize }} · <b>{{ p.nb_en_cours }}</b> en cours</p>
       <span class="pr-jauge" aria-hidden="true"><i style="--w:{% widthratio p.nb_en_cours p.nb_reservations 100 %}%"></i></span>
-      <div class="pr-actions"><a class="btn ghost sm" href="{{ p.get_absolute_url }}" aria-label="Voir {{ p.nom }}">Voir</a><a class="btn primary sm" href="{% url 'prestataires:reserver_prestataire' p.pk %}" aria-label="Réserver {{ p.nom }}">Réserver</a></div>
+      <div class="pr-actions"><a class="btn ghost sm" href="{{ p.get_absolute_url }}" aria-label="Voir {{ p.nom }}">Voir</a>{% if p.est_approuve and not user.est_admin %}<a class="btn primary sm" href="{% url 'prestataires:reserver_prestataire' p.pk %}" aria-label="Réserver {{ p.nom }}">Réserver</a>{% endif %}</div>
     </div>
     <span class="pr-reflet" aria-hidden="true"></span>
   </article></li>{% endfor %}

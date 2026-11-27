@@ -5,6 +5,7 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.templatetags.static import static
 from django.urls import reverse
+from django.utils import timezone
 
 from evenements.models import Evenement
 
@@ -55,8 +56,27 @@ class Service(models.Model):
         return image_prestataires(f"services/{self.type.lower()}")
 
 
+class PrestataireQuerySet(models.QuerySet):
+    def approuves(self):
+        return self.filter(statut_validation=Prestataire.Validation.APPROUVE)
+
+    def en_attente(self):
+        return self.filter(statut_validation=Prestataire.Validation.EN_ATTENTE)
+
+    def visibles_pour(self, user):
+        """Catalogue : les prestataires approuvés, plus ceux que l'utilisateur a proposés (en attente ou refusés)."""
+        if not (user and user.is_authenticated):
+            return self.approuves()
+        return self.filter(models.Q(statut_validation=Prestataire.Validation.APPROUVE) | models.Q(cree_par=user))
+
+
 class Prestataire(models.Model):
-    compte = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+    class Validation(models.TextChoices):
+        EN_ATTENTE = "EN_ATTENTE", "En attente de validation"
+        APPROUVE = "APPROUVE", "Approuvé"
+        REFUSE = "REFUSE", "Refusé"
+
+    compte =models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                   related_name="prestataire")
     nom = models.CharField(max_length=120)
     telephone = models.CharField(max_length=20, blank=True)
@@ -64,11 +84,58 @@ class Prestataire(models.Model):
     services = models.ManyToManyField(Service, related_name="prestataires")
     photo = models.ImageField("photo ou logo", upload_to="prestataires/", blank=True)
 
+    # ---- Validation par l'administrateur ----
+    # Défaut APPROUVE : les créations « de confiance » (admin, shell, données de démonstration) restent
+    # réservables. La seule création non fiable, celle d'un organisateur, passe explicitement EN_ATTENTE (vue).
+    statut_validation = models.CharField("statut de validation", max_length=10, choices=Validation.choices,
+                                         default=Validation.APPROUVE, db_index=True)
+    cree_par = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name="créé par", on_delete=models.SET_NULL,
+                                 null=True, blank=True, related_name="prestataires_crees")
+    valide_par = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name="validé par", on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name="prestataires_valides")
+    date_validation = models.DateTimeField("date de validation", null=True, blank=True)
+    motif_refus = models.TextField("motif de refus", blank=True)
+
+    objects = PrestataireQuerySet.as_manager()
+
     class Meta:
         ordering = ["nom"]
 
     def __str__(self):
         return self.nom
+
+    def clean(self):
+        if self.statut_validation == self.Validation.REFUSE and not (self.motif_refus or "").strip():
+            raise ValidationError({"motif_refus": "Indiquez le motif du refus."})
+
+    # ---- Validation par l'administrateur ----
+    @property
+    def est_approuve(self):
+        return self.statut_validation == self.Validation.APPROUVE
+
+    @property
+    def est_en_attente(self):
+        return self.statut_validation == self.Validation.EN_ATTENTE
+
+    @property
+    def est_refuse(self):
+        return self.statut_validation == self.Validation.REFUSE
+
+    def _valider(self, par, statut, motif=""):
+        self.statut_validation = statut
+        self.valide_par = par
+        self.date_validation = timezone.now()
+        self.motif_refus = motif
+        self.save(update_fields=["statut_validation", "valide_par", "date_validation", "motif_refus"])
+
+    def approuver(self, par):
+        self._valider(par, self.Validation.APPROUVE)
+
+    def refuser(self, par, motif):
+        motif = (motif or "").strip()
+        if not motif:
+            raise ValidationError("Le motif du refus est obligatoire.")
+        self._valider(par, self.Validation.REFUSE, motif)
 
     @property
     def service_principal(self):
@@ -122,15 +189,28 @@ class Reservation(models.Model):
         return f"{self.prestataire} → {self.evenement}"
 
     def clean(self):
-        """Règles métier (US 4.3.3) : montant strictement positif, service proposé par le prestataire."""
+        """Règles métier (US 4.3.3) : montant strictement positif, service proposé par le prestataire.
+
+        Validation : le prestataire doit être approuvé par l'administrateur. Vérifié à la création ou au
+        changement de prestataire, pour ne pas bloquer l'édition d'une réservation plus ancienne.
+        """
         erreurs = {}
         if self.montant is not None and self.montant <= 0:
             erreurs["montant"] = "Le montant doit être strictement supérieur à 0."
+        if self.prestataire_id and not self.prestataire.est_approuve and self._prestataire_change():
+            erreurs["prestataire"] = (f"« {self.prestataire} » n'est pas approuvé par l'administrateur : "
+                                      "il ne peut pas être réservé.")
         if self.prestataire_id and self.service_id and \
                 not self.prestataire.services.filter(pk=self.service_id).exists():
             erreurs["service"] = f"{self.prestataire} ne propose pas le service « {self.service} »."
         if erreurs:
             raise ValidationError(erreurs)
+
+    def _prestataire_change(self):
+        if self._state.adding:
+            return True
+        ancien = Reservation.objects.filter(pk=self.pk).values_list("prestataire_id", flat=True).first()
+        return ancien != self.prestataire_id
 
     # ---- Transitions de statut (US 4.4.2) ----
     def peut_passer_a(self, statut):
